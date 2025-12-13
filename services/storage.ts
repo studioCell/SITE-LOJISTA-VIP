@@ -10,7 +10,8 @@ import {
   query, 
   where, 
   onSnapshot,
-  orderBy
+  orderBy,
+  arrayUnion
 } from "firebase/firestore";
 import { db, isFirebaseConfigured } from "./firebase";
 import { Product, MOCK_PRODUCTS, Story, User, CartItem, ShopSettings, Order, OrderStatus } from '../types';
@@ -194,7 +195,18 @@ export const addStory = async (storyData: { imageUrl: string; type: 'image' | 'v
       caption: storyData.caption,
       createdAt: now,
       expiresAt: now + ONE_WEEK_MS,
-      productId: storyData.productId || null
+      productId: storyData.productId || null,
+      views: []
+    });
+  } catch (error) { handleFirestoreError(error); }
+};
+
+export const markStoryAsViewed = async (storyId: string, userId: string) => {
+  if (!isFirebaseConfigured || !userId) return;
+  try {
+    const storyRef = doc(db, STORIES_COL, storyId);
+    await updateDoc(storyRef, {
+      views: arrayUnion(userId)
     });
   } catch (error) { handleFirestoreError(error); }
 };
@@ -290,6 +302,21 @@ export const updateUserPassword = async (userId: string, newPassword: string) =>
   } catch (error) { handleFirestoreError(error); }
 };
 
+export const updateUser = async (user: User) => {
+  if (!isFirebaseConfigured) return;
+  try {
+    const { id, ...data } = user;
+    await updateDoc(doc(db, USERS_COL, id), data);
+  } catch (error) { handleFirestoreError(error); }
+};
+
+export const deleteUser = async (userId: string) => {
+  if (!isFirebaseConfigured) return;
+  try {
+    await deleteDoc(doc(db, USERS_COL, userId));
+  } catch (error) { handleFirestoreError(error); }
+};
+
 // Register
 export const registerUser = async (userData: { name: string; phone: string; cep: string; city: string; password: string; }): Promise<{ success: boolean; message: string; user?: User }> => {
   if (!isFirebaseConfigured) {
@@ -309,7 +336,8 @@ export const registerUser = async (userData: { name: string; phone: string; cep:
       id: newUserRef.id,
       isAdmin: false,
       ...userData,
-      savedCart: []
+      savedCart: [],
+      createdAt: Date.now()
     };
 
     await setDoc(newUserRef, newUser);
@@ -327,7 +355,7 @@ export const loginUser = async (identifier: string, password: string, remember: 
   // Admin Check
   if (identifier === 'admin' && password === '12345678') {
     const adminUser: User = { id: 'admin', name: 'Administrador', isAdmin: true, username: 'admin' };
-    localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(adminUser));
+    if (remember) localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(adminUser));
     return { success: true, message: 'Bem-vindo Admin', user: adminUser };
   }
 
@@ -343,7 +371,7 @@ export const loginUser = async (identifier: string, password: string, remember: 
     if (!querySnapshot.empty) {
       const userDoc = querySnapshot.docs[0];
       const user = { id: userDoc.id, ...userDoc.data() } as User;
-      localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(user));
+      if (remember) localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(user));
       return { success: true, message: `Bem-vindo de volta, ${user.name}!`, user };
     }
   } catch (error) {

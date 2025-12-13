@@ -72,7 +72,7 @@ export const Header: React.FC<HeaderProps> = ({
             ) : (
               <button 
                 onClick={onLoginClick}
-                className="text-sm font-medium text-gray-300 hover:text-white hidden sm:block"
+                className="text-sm font-bold text-orange-500 hover:text-orange-400 bg-zinc-800 px-3 py-1.5 rounded border border-zinc-700"
               >
                 Fazer Login
               </button>

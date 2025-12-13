@@ -24,6 +24,7 @@ export interface User {
   password?: string;
   isAdmin: boolean;
   savedCart?: CartItem[];
+  createdAt?: number; // Added for "New Client" logic
 }
 
 export interface Story {
@@ -34,6 +35,7 @@ export interface Story {
   createdAt: number;
   expiresAt: number;
   productId?: string;
+  views?: string[]; // Array of User IDs who viewed
 }
 
 export interface ShopSettings {

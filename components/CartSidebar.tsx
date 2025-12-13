@@ -210,6 +210,14 @@ export const CartSidebar: React.FC<CartSidebarProps> = ({
         {items.length > 0 && (
           <div className="p-5 bg-gray-50 border-t border-gray-200">
             
+            {/* Continue Shopping Button */}
+            <button 
+                onClick={onClose}
+                className="w-full mb-3 text-sm font-bold text-orange-600 hover:text-orange-800 hover:bg-orange-50 py-2 rounded-lg transition-colors border border-transparent hover:border-orange-200"
+            >
+                ← Continuar Comprando
+            </button>
+
             {/* ADMIN SECTION: Select Client & Address */}
             {isAdmin && (
                 <div className="mb-6 bg-white border border-orange-200 rounded-lg p-3 shadow-sm">
