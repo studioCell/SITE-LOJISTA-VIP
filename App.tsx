@@ -120,9 +120,8 @@ function App() {
       } else if (user.savedCart) {
         setCart(user.savedCart); 
       }
-    } else {
-      setIsAuthOpen(true);
-    }
+    } 
+    // REMOVED: else { setIsAuthOpen(true); } to prevent auto-open on load
 
     // Cleanup listeners
     return () => {
@@ -188,6 +187,13 @@ function App() {
   };
 
   const handleCheckout = () => {
+    // AUTH CHECK: Open modal if not logged in
+    if (!currentUser) {
+      setIsCartOpen(false); // Close cart so auth modal is visible clearly
+      setIsAuthOpen(true);
+      return;
+    }
+
     const total = cart.reduce((acc, item) => acc + (item.price * item.quantity), 0);
     
     // Create the Order Object locally
@@ -277,7 +283,7 @@ ${customerInfo}
     setCurrentUser(null);
     setView('home');
     setCart([]); 
-    setIsAuthOpen(true); 
+    // Do not open auth modal on logout
   };
 
   // Header Icon Logic
@@ -659,9 +665,7 @@ ${customerInfo}
 
       <AuthModal 
         isOpen={isAuthOpen} 
-        onClose={() => {
-           if (currentUser) setIsAuthOpen(false);
-        }}
+        onClose={() => setIsAuthOpen(false)}
         onLogin={handleLogin}
         onRegister={handleRegister}
         logo={logo}
