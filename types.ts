@@ -63,13 +63,24 @@ export interface Order {
   userId: string;
   userName: string;
   userPhone: string;
-  userCep?: string; // Store address snapshot
-  userCity?: string; // Store address snapshot
+  
+  // Address Details
+  userCep?: string;
+  userCity?: string;
+  userStreet?: string;
+  userNumber?: string;
+  userDistrict?: string;
+
   items: CartItem[];
   total: number;
   discount?: number; // New field for discount
   shippingCost?: number; // Optional shipping cost
   shippingMethod?: string; // e.g., 'Motoboy', 'Correios'
+  
+  // Fees
+  wantsInvoice?: boolean; // 6%
+  wantsInsurance?: boolean; // 3%
+
   status: OrderStatus;
   createdAt: number;
   trackingCode?: string;

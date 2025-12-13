@@ -13,7 +13,7 @@ interface PrintPreviewModalProps {
 
 const STATUS_LABELS: Record<OrderStatus, string> = {
   orcamento: 'Orçamento',
-  realizado: 'Realizado',
+  realizado: 'Pedido Finalizado',
   pagamento_pendente: 'Aguard. Pagamento',
   preparacao: 'Em Preparação',
   transporte: 'Em Trânsito',
@@ -41,6 +41,20 @@ export const PrintPreviewModal: React.FC<PrintPreviewModalProps> = ({
     // Shipping info text
     const shippingText = order.shippingCost ? `R$ ${order.shippingCost.toFixed(2)}` : 'Grátis/Não Inf.';
     const methodText = order.shippingMethod || 'Padrão';
+    
+    // Fees
+    let fees = 0;
+    let feesHtml = '';
+    if (order.wantsInvoice) {
+        const val = subtotal * 0.06;
+        fees += val;
+        feesHtml += `<p class="info" style="text-align: right;">Nota Fiscal (6%): + R$ ${val.toFixed(2)}</p>`;
+    }
+    if (order.wantsInsurance) {
+        const val = subtotal * 0.03;
+        fees += val;
+        feesHtml += `<p class="info" style="text-align: right;">Seguro (3%): + R$ ${val.toFixed(2)}</p>`;
+    }
 
     const htmlContent = `
     <html>
@@ -77,7 +91,8 @@ export const PrintPreviewModal: React.FC<PrintPreviewModalProps> = ({
           <div class="customer-info">
             <p class="info"><strong>Cliente:</strong> ${order.userName}</p>
             <p class="info"><strong>Telefone:</strong> ${order.userPhone}</p>
-            <p class="info"><strong>Endereço:</strong> ${order.userCity || 'N/A'} ${order.userCep ? `(${order.userCep})` : ''}</p>
+            <p class="info"><strong>Endereço:</strong> ${order.userStreet ? `${order.userStreet}, ${order.userNumber}` : (order.userCity || 'N/A')}</p>
+            ${order.userDistrict ? `<p class="info"><strong>Bairro:</strong> ${order.userDistrict}</p>` : ''}
           </div>
 
           <div class="divider"></div>
@@ -114,6 +129,7 @@ export const PrintPreviewModal: React.FC<PrintPreviewModalProps> = ({
           <p class="info" style="text-align: right;">Subtotal: R$ ${subtotal.toFixed(2)}</p>
           <p class="info" style="text-align: right;">Desconto: - R$ ${(order.discount || 0).toFixed(2)}</p>
           <p class="info" style="text-align: right;">Frete (${methodText}): + ${shippingText}</p>
+          ${feesHtml}
           <p class="total">TOTAL: R$ ${order.total.toFixed(2)}</p>
 
           <div class="divider"></div>

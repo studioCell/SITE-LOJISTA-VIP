@@ -33,7 +33,7 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({
   const handleContact = () => {
     const msg = `Tenho uma pergunta sobre esse produto e o ${product.name}`;
     const encoded = encodeURIComponent(msg);
-    window.open(`https://wa.me/5562992973853?text=${encoded}`, '_blank');
+    window.open(`https://api.whatsapp.com/send?phone=5562992973853&text=${encoded}`, '_blank');
   };
 
   const handleShare = async () => {

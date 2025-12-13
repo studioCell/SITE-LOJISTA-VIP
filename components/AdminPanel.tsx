@@ -21,7 +21,6 @@ import { PrintPreviewModal } from './PrintPreviewModal';
 const AdminProductThumbnail = ({ src, alt }: { src?: string, alt: string }) => {
   const [error, setError] = useState(false);
 
-  // If error occurs or no source, show placeholder
   if (error || !src || src.trim() === '') {
     return (
        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -51,7 +50,7 @@ interface AdminPanelProps {
 
 const STATUS_LABELS: Record<OrderStatus, string> = {
   orcamento: 'Orçamento',
-  realizado: 'Pedido Feito',
+  realizado: 'Pedido Finalizado', // Changed
   pagamento_pendente: 'Aguardando Pagamento',
   preparacao: 'Em Preparação',
   transporte: 'Em Trânsito',
@@ -83,7 +82,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   
-  // Settings State
   const [settings, setSettings] = useState<ShopSettings>({
     aboutUs: '',
     shippingPolicy: '',
@@ -98,26 +96,20 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   const [logoUrl, setLogoUrl] = useState('');
   const [previewError, setPreviewError] = useState(false);
 
-  // Clients & Orders State
   const [users, setUsers] = useState<User[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [expandedUser, setExpandedUser] = useState<string | null>(null);
   const [trackingInput, setTrackingInput] = useState<Record<string, string>>({}); 
   const [showPasswordFor, setShowPasswordFor] = useState<Record<string, boolean>>({});
   
-  // Password Management State
   const [passwordInput, setPasswordInput] = useState<Record<string, string>>({});
 
-  // Filters State
   const [statusFilter, setStatusFilter] = useState<OrderStatus | 'all'>('all');
   const [cityFilter, setCityFilter] = useState('');
   
-  // Print Modal State
   const [previewOrder, setPreviewOrder] = useState<Order | null>(null);
 
-  // Initial Data Loading
   useEffect(() => {
-    // 1. Settings
     const loadSettings = async () => {
       setSettings(await getShopSettings());
       setCoverUrl(await getHeroImage());
@@ -125,12 +117,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     };
     loadSettings();
 
-    // 2. Real-time Users
     const unsubUsers = subscribeToUsers((data) => {
       setUsers(data.filter(u => !u.isAdmin));
     });
 
-    // 3. Real-time Orders
     const unsubOrders = subscribeToOrders((data) => {
       setOrders(data);
     });
@@ -168,7 +158,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     toggleProductAvailability(id);
   };
 
-
   // --- Settings Logic ---
   const handleSaveSettings = async () => {
     await saveShopSettings(settings);
@@ -203,35 +192,27 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   // --- Order Logic ---
   const getOrdersForUser = (userId: string) => {
     let userOrders = orders.filter(o => o.userId === userId).sort((a, b) => b.createdAt - a.createdAt);
-    
-    // Apply Status Filter
     if (statusFilter !== 'all') {
       userOrders = userOrders.filter(o => o.status === statusFilter);
     }
-
     return userOrders;
   };
 
   const updateOrderStatus = async (order: Order, newStatus: OrderStatus) => {
-    // Preserve existing tracking code unless explicitly updating it elsewhere
     const updatedOrder: Order = {
       ...order,
       status: newStatus,
       history: [...order.history, { status: newStatus, timestamp: Date.now() }]
     };
-
     await updateOrder(updatedOrder);
   };
 
   const saveTrackingCode = async (order: Order) => {
     const tracking = trackingInput[order.id];
-    if (tracking === undefined) return; // No change
-
-    // If adding tracking, usually we set status to transporte, but user wants flexibility
+    if (tracking === undefined) return;
     const updatedOrder: Order = {
         ...order,
         trackingCode: tracking,
-        // Optional: auto-update status to transporte if not already
         status: order.status === 'preparacao' ? 'transporte' : order.status
     };
     await updateOrder(updatedOrder);
@@ -241,7 +222,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
      const link = order.trackingCode || '';
      const message = `Acompanhe seu pedido pelo link:\n${link}`;
      const encoded = encodeURIComponent(message);
-     window.open(`https://wa.me/55${order.userPhone.replace(/\D/g, '')}?text=${encoded}`, '_blank');
+     const phoneNumber = order.userPhone.replace(/\D/g, '');
+     window.open(`https://api.whatsapp.com/send?phone=55${phoneNumber}&text=${encoded}`, '_blank');
   };
 
   const handlePrintOrder = (order: Order) => {
@@ -255,27 +237,26 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
     switch (order.status) {
         case 'orcamento':
-            // Resumo completo do pedido
             message = `Olá ${name}!\n\nSegue o resumo do seu pedido:\n`;
-            message += `📍 *Envio para:* ${order.userCity || 'Endereço não informado'}\n`;
-            message += `🚚 *Forma de Envio:* ${order.shippingMethod || 'A combinar'}\n\n`;
-            message += `🛒 *Itens:*\n${itemsList}\n\n`;
-            message += `💰 *Total:* R$ ${order.total.toFixed(2)}\n`;
-            if (order.discount) message += `🏷️ *Desconto:* R$ ${order.discount.toFixed(2)}\n`;
+            message += `*Envio para:* ${order.userCity || 'Endereço não informado'}\n`;
+            message += `*Forma de Envio:* ${order.shippingMethod || 'A combinar'}\n\n`;
+            message += `*Itens:*\n${itemsList}\n\n`;
+            message += `*Total:* R$ ${order.total.toFixed(2)}\n`;
+            if (order.discount) message += `*Desconto:* R$ ${order.discount.toFixed(2)}\n`;
             message += `\n*Confere o Pedido? Posso finalizar?*`;
             break;
 
         case 'realizado':
-            message = `*Pedido Confirmado!* ✅\n\nOlá ${name}, recebemos a confirmação do seu pedido. Em breve iniciaremos o processo de separação.`;
+            message = `*Pedido Confirmado!*\n\nOlá ${name}, recebemos a confirmação do seu pedido. Em breve iniciaremos o processo de separação.`;
             break;
 
         case 'pagamento_pendente':
-            message = `*Aguardando Pagamento* 💸\n\nOlá ${name}. Segue os dados bancários para pagamento:\n\n`;
+            message = `*Aguardando Pagamento*\n\nOlá ${name}. Segue os dados para pagamento:\n\n`;
             message += `*Chave PIX:* ${settings.pixKey}\n`;
             message += `*Nome:* ${settings.pixName}\n`;
             message += `*Banco:* ${settings.pixBank}\n\n`;
             message += `*Valor:* R$ ${order.total.toFixed(2)}\n\n`;
-            message += `⚠️ Por favor, *envie o comprovante completo* para darmos andamento no seu pedido.`;
+            message += `Por favor, *envie o comprovante completo* para darmos andamento.`;
             break;
 
         case 'preparacao':
@@ -283,17 +264,17 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
             break;
 
         case 'transporte':
-            message = `Saiu para Entrega/Envio! 🚚\n\nOlá ${name}, sua mercadoria já foi enviada e está em trânsito.\n${order.trackingCode ? `Acompanhe pelo link:\n${order.trackingCode}` : ''}`;
+            message = `Saiu para Entrega/Envio!\n\nOlá ${name}, sua mercadoria já foi enviada e está em trânsito.\n${order.trackingCode ? `Acompanhe pelo link:\n${order.trackingCode}` : ''}`;
             break;
 
         case 'entregue':
-            message = `Pedido Entregue! 🎁\n\nOlá ${name}, esperamos que tenha gostado do seu pedido!\n\n📹 Se puder, *grave um vídeo e nos dê sua opinião*.`;
+            message = `Pedido Entregue!\n\nOlá ${name}, esperamos que tenha gostado do seu pedido!\n\nSe puder, *grave um vídeo e nos dê sua opinião*.`;
             break;
 
         case 'devolucao':
             message = `Olá ${name}.\nSolicitado a devolução.\n\n`;
-            message += `📍 *Endereço para devolução:*\nEndereço da Loja (Solicite ao atendente)\n\n`;
-            message += `📦 *Passo a passo:*\n1. Embale a mercadoria na caixa original ou similar.\n2. Cole a Nota Fiscal ou Declaração de Conteúdo do lado de fora.\n3. Leve a uma agência dos Correios.\n\nQualquer dúvida, estamos à disposição.`;
+            message += `*Endereço para devolução:*\nEndereço da Loja (Solicite ao atendente)\n\n`;
+            message += `*Passo a passo:*\n1. Embale a mercadoria na caixa original ou similar.\n2. Cole a Nota Fiscal ou Declaração de Conteúdo do lado de fora.\n3. Leve a uma agência dos Correios.\n\nQualquer dúvida, estamos à disposição.`;
             break;
 
         case 'cancelado':
@@ -305,7 +286,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     }
 
     const encoded = encodeURIComponent(message);
-    window.open(`https://wa.me/55${order.userPhone.replace(/\D/g, '')}?text=${encoded}`, '_blank');
+    const phoneNumber = order.userPhone.replace(/\D/g, '');
+    window.open(`https://api.whatsapp.com/send?phone=55${phoneNumber}&text=${encoded}`, '_blank');
   };
 
   const togglePasswordVisibility = (userId: string) => {
@@ -322,10 +304,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       return;
     }
     await updateUserPassword(userId, newPass);
-    // Subscription updates UI
     setPasswordInput(prev => ({ ...prev, [userId]: '' }));
     alert("Senha atualizada com sucesso!");
-    // Hide section
     togglePasswordVisibility(userId);
   };
 
@@ -421,13 +401,13 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                               onClick={() => handleEditClick(product)} 
                               className="text-blue-600 hover:text-blue-900 bg-blue-50 px-3 py-1 rounded-md"
                             >
-                              Editar
+                              ✏️
                             </button>
                             <button 
                               onClick={() => onDeleteProduct(product.id)} 
                               className="text-red-600 hover:text-red-900 bg-red-50 px-3 py-1 rounded-md"
                             >
-                              Excluir
+                              🗑️
                             </button>
                           </div>
                         </td>
@@ -510,9 +490,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                           <span className="text-sm text-gray-600 bg-white px-3 py-1 rounded border border-gray-200">
                             {userOrders.length} pedidos
                           </span>
-                          <svg xmlns="http://www.w3.org/2000/svg" className={`h-5 w-5 text-gray-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                          </svg>
+                          <span className={`transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}>▼</span>
                         </div>
                       </div>
 
@@ -526,10 +504,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                                   onClick={() => togglePasswordVisibility(user.id)}
                                   className="text-xs text-red-600 hover:text-red-800 font-bold underline flex items-center gap-1"
                                 >
-                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
-                                  </svg>
-                                  Alterar Senha
+                                  🔐 Alterar Senha
                                 </button>
                               ) : (
                                 <div className="bg-red-50 border border-red-100 rounded-lg p-4 animate-fade-in">
@@ -538,9 +513,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                                         Segurança da Conta
                                       </h3>
                                       <button onClick={() => togglePasswordVisibility(user.id)} className="text-gray-400 hover:text-gray-600">
-                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                        </svg>
+                                        ❌
                                       </button>
                                     </div>
                                     <div className="flex flex-col sm:flex-row gap-4 items-end sm:items-center">
@@ -583,7 +556,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                                         onClick={() => onEditOrder(order)}
                                         className="absolute top-4 right-4 text-xs font-bold text-orange-600 bg-orange-50 px-2 py-1 rounded hover:bg-orange-100"
                                     >
-                                      ✏️ Editar Pedido
+                                      ✏️ Editar
                                     </button>
                                   )}
 
@@ -607,10 +580,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                                         onClick={() => handlePrintOrder(order)}
                                         className="mt-1 text-xs text-gray-500 hover:text-gray-800 underline flex items-center justify-end gap-1 w-full"
                                       >
-                                          <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
-                                          </svg>
-                                          Imprimir Pedido
+                                          📄 Imprimir Pedido
                                       </button>
                                     </div>
                                   </div>
@@ -643,10 +613,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                                               onClick={() => handleSendUpdate(order)}
                                               className="text-xs bg-green-500 text-white hover:bg-green-600 px-3 py-1.5 rounded font-bold flex items-center gap-1 transition-colors ml-2"
                                           >
-                                              <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-                                              </svg>
-                                              Enviar Atualização
+                                              📲 Enviar Atualização
                                           </button>
                                       </div>
 
@@ -659,7 +626,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                                           onChange={(e) => setTrackingInput({...trackingInput, [order.id]: e.target.value})}
                                         />
                                         
-                                        {/* Smart Tracking Button */}
                                         {(() => {
                                            const currentInput = trackingInput[order.id] !== undefined ? trackingInput[order.id] : order.trackingCode;
                                            const isSaved = order.trackingCode && currentInput === order.trackingCode;
@@ -670,10 +636,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                                                 className="px-2 py-1 text-xs rounded transition-colors bg-green-500 text-white hover:bg-green-600 flex items-center gap-1"
                                                 title="Enviar Rastreio via WhatsApp"
                                               >
-                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-                                                </svg>
-                                                Enviar Rastreio
+                                                📲 Enviar Rastreio
                                               </button>
                                            ) : (
                                               <button 
@@ -698,22 +661,17 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
               )}
             </div>
           )}
-
           {/* Settings Tab... */}
           {activeTab === 'settings' && (
             <div className="space-y-6 max-w-3xl mx-auto animate-fade-in">
-              {/* ... existing settings ... */}
               <div className="bg-orange-50 p-4 rounded-lg border border-orange-100 mb-6">
                   <h3 className="font-bold text-orange-800">⚙️ Configurações Gerais</h3>
                   <p className="text-sm text-orange-600">Essas informações aparecem para todos os clientes no site.</p>
               </div>
-
-              {/* PIX Settings */}
+              {/* Rest of Settings... (No change needed) */}
+               {/* PIX Settings */}
               <div className="bg-green-50 p-4 rounded-lg border border-green-100 mb-4">
                 <h3 className="font-bold text-green-800 mb-3 flex items-center gap-2">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
                   Configuração do PIX
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

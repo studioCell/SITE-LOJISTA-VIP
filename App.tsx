@@ -186,7 +186,10 @@ function App() {
     }));
   };
 
-  const handleCheckout = () => {
+  const handleCheckout = (
+      extras: { wantsInvoice: boolean; wantsInsurance: boolean },
+      customerOverride?: { user: User, address: any }
+  ) => {
     // AUTH CHECK: Open modal if not logged in
     if (!currentUser) {
       setIsCartOpen(false); // Close cart so auth modal is visible clearly
@@ -194,19 +197,36 @@ function App() {
       return;
     }
 
-    const total = cart.reduce((acc, item) => acc + (item.price * item.quantity), 0);
+    const subtotal = cart.reduce((acc, item) => acc + (item.price * item.quantity), 0);
+    const invoiceFee = extras.wantsInvoice ? subtotal * 0.06 : 0;
+    const insuranceFee = extras.wantsInsurance ? subtotal * 0.03 : 0;
+    const total = subtotal + invoiceFee + insuranceFee;
     
+    // Determine who is the "User" for the order
+    // If Admin selected a customer, use that customer. Otherwise use current user.
+    const targetUser = customerOverride ? customerOverride.user : currentUser;
+    const targetAddress = customerOverride ? customerOverride.address : null;
+
     // Create the Order Object locally
-    if (currentUser && !currentUser.isAdmin) {
+    // Save order if it's a regular user OR if it's an admin placing order for a user
+    if ((currentUser && !currentUser.isAdmin) || (currentUser?.isAdmin && targetUser)) {
       const newOrder: Order = {
         id: Date.now().toString(), // Temp ID, storage will generate Firestore ID
-        userId: currentUser.id,
-        userName: currentUser.name,
-        userPhone: currentUser.phone || '',
-        userCep: currentUser.cep,
-        userCity: currentUser.city,
+        userId: targetUser.id,
+        userName: targetUser.name,
+        userPhone: targetUser.phone || '',
+        
+        // Use Address override if provided (Admin Mode), else fallback to user profile
+        userCep: targetAddress?.cep || targetUser.cep,
+        userCity: targetAddress?.city || targetUser.city,
+        userStreet: targetAddress?.street,
+        userNumber: targetAddress?.number,
+        userDistrict: targetAddress?.district,
+
         items: [...cart],
         total: total,
+        wantsInvoice: extras.wantsInvoice,
+        wantsInsurance: extras.wantsInsurance,
         status: 'orcamento',
         createdAt: Date.now(),
         history: [{ status: 'orcamento', timestamp: Date.now() }]
@@ -218,40 +238,54 @@ function App() {
 
     // Build WA Message
     const lines = cart.map(item => {
-      let line = `• ${item.quantity}x ${item.name}`;
+      let line = `- ${item.quantity}x ${item.name}`;
       line += `\n   (Un: R$ ${item.price.toFixed(2)})`; // Explicit Unit Price
       if (item.note) line += `\n   Obs: ${item.note}`;
       return line;
     });
 
     let customerInfo = "";
-    if (currentUser) {
-        customerInfo += `\n*Cliente:* ${currentUser.name}`;
-        customerInfo += `\n*Tel:* ${currentUser.phone || 'Não informado'}`;
-        if (currentUser.city) {
-            customerInfo += `\n*Endereço:* ${currentUser.city}`;
-            if (currentUser.cep) customerInfo += ` - CEP: ${currentUser.cep}`;
+    if (targetUser) {
+        customerInfo += `\n*Cliente:* ${targetUser.name}`;
+        customerInfo += `\n*Tel:* ${targetUser.phone || 'Não informado'}`;
+        
+        // Format address for message
+        if (targetAddress && targetAddress.street) {
+             customerInfo += `\n*Endereço:* ${targetAddress.street}, ${targetAddress.number || 'S/N'}`;
+             if(targetAddress.district) customerInfo += ` - ${targetAddress.district}`;
+             if(targetAddress.city) customerInfo += `\n${targetAddress.city}`;
+             if(targetAddress.cep) customerInfo += ` (CEP: ${targetAddress.cep})`;
+        } else if (targetUser.city) {
+            customerInfo += `\n*Endereço:* ${targetUser.city}`;
+            if (targetUser.cep) customerInfo += ` - CEP: ${targetUser.cep}`;
         }
     }
+
+    let extraInfo = "";
+    if (extras.wantsInvoice) extraInfo += "\n*Com Nota Fiscal*";
+    if (extras.wantsInsurance) extraInfo += "\n*Com Seguro*";
 
     const text = 
 `*Novo Pedido - Lojista Vip*
 ----------------------------
 ${lines.join('\n')}
 ----------------------------
-*Total Produtos: R$ ${total.toFixed(2)}*
+${extraInfo}
+*Total Estimado: R$ ${total.toFixed(2)}*
 ${customerInfo}
 
 *Aguardando cálculo do frete e confirmação...*
 `;
     
     const encodedText = encodeURIComponent(text);
-    window.open(`https://wa.me/${settings?.contactNumber || '5562992973853'}?text=${encodedText}`, '_blank');
+    const phoneNumber = settings?.contactNumber || '5562992973853';
+    // Using api.whatsapp.com ensures deep linking works correctly on all devices to fill the text box
+    window.open(`https://api.whatsapp.com/send?phone=${phoneNumber}&text=${encodedText}`, '_blank');
     setIsCartOpen(false);
   };
 
   const handleContact = () => {
-    window.open(`https://wa.me/5562992973853`, '_blank');
+    window.open(`https://api.whatsapp.com/send?phone=5562992973853`, '_blank');
   };
 
   const handleLogin = async (u: string, p: string, remember: boolean) => {
@@ -455,12 +489,12 @@ ${customerInfo}
 
       <Header 
         cartCount={cart.reduce((a, b) => a + b.quantity, 0)}
-        onCartClick={handleHeaderCartClick} // Modified handler
+        onCartClick={() => setIsCartOpen(true)} // Keep default to open cart, admin icon handles sales area
         currentUser={currentUser}
         onLoginClick={() => setIsAuthOpen(true)}
         onLogoutClick={handleLogout}
         onMenuClick={() => setIsMenuOpen(true)}
-        onAdminClick={() => setView('admin')}
+        onAdminClick={() => setIsSalesAreaOpen(true)} // Admin Link opens Sales Area
         logo={logo}
       />
 
@@ -600,14 +634,26 @@ ${customerInfo}
       </main>
 
       <footer className="bg-zinc-900 border-t border-zinc-800 mt-12 py-8">
-        <div className="max-w-7xl mx-auto px-4 text-center text-gray-400 text-sm">
-          <p>&copy; {new Date().getFullYear()} Lojista Vip. Todos os direitos reservados.</p>
+        <div className="max-w-7xl mx-auto px-4 text-center">
+          {/* Instagram Button */}
+          <a 
+            href="https://instagram.com/Lojista.vip" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 text-pink-500 hover:text-pink-400 font-bold mb-4 transition-colors text-lg"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" viewBox="0 0 16 16">
+              <path d="M8 0C5.829 0 5.556.01 4.703.048 3.85.088 3.269.222 2.76.42a3.917 3.917 0 0 0-1.417.923A3.927 3.927 0 0 0 .42 2.76C.222 3.268.087 3.85.048 4.7.01 5.555 0 5.827 0 8.001c0 2.172.01 2.444.048 3.297.04.852.174 1.433.372 1.942.205.526.478.972.923 1.417.444.445.89.719 1.416.923.51.198 1.09.333 1.942.372C5.555 15.99 5.827 16 8 16s2.444-.01 3.298-.048c.851-.04 1.434-.174 1.943-.372a3.916 3.916 0 0 0 1.416-.923c.445-.445.718-.891.923-1.417.197-.509.332-1.09.372-1.942C15.99 10.445 16 10.173 16 8s-.01-2.445-.048-3.299c-.04-.851-.175-1.433-.372-1.941a3.926 3.926 0 0 0-.923-1.417A3.911 3.911 0 0 0 13.24.42c-.51-.198-1.092-.333-1.943-.372C10.443.01 10.172 0 7.998 0h.003zm-.717 1.442h.718c2.136 0 2.389.007 3.232.046.78.035 1.204.166 1.486.275.373.145.64.319.92.599.28.28.453.546.598.92.11.281.24.705.275 1.485.039.843.047 1.096.047 3.231s-.008 2.389-.047 3.232c-.035.78-.166 1.203-.275 1.485a2.47 2.47 0 0 1-.599.919c-.28.28-.546.453-.92.598-.28.11-.704.24-1.485.276-.843.038-1.096.047-3.232.047s-2.39-.009-3.233-.047c-.78-.036-1.203-.166-1.485-.276a2.478 2.478 0 0 1-.92-.598 2.48 2.48 0 0 1-.6-.92c-.109-.281-.24-.705-.275-1.485-.038-.843-.046-1.096-.046-3.233 0-2.136.008-2.388.046-3.231.036-.78.166-1.204.276-1.486.145-.373.319-.64.599-.92.28-.28.546-.453.92-.598.282-.11.705-.24 1.485-.276.738-.034 1.024-.044 2.515-.045v.002zm4.988 1.328a.96.96 0 1 0 0 1.92.96.96 0 0 0 0-1.92zm-4.27 1.122a4.109 4.109 0 1 0 0 8.217 4.109 4.109 0 0 0 0-8.217zm0 1.441a2.667 2.667 0 1 1 0 5.334 2.667 2.667 0 0 1 0-5.334z"/>
+            </svg>
+            @Lojista.vip
+          </a>
+          <p className="text-gray-400 text-sm mt-2">&copy; {new Date().getFullYear()} Lojista Vip. Todos os direitos reservados.</p>
         </div>
       </footer>
 
       {/* Floating WhatsApp Button */}
       <a 
-        href="https://wa.me/5562992973853" 
+        href="https://api.whatsapp.com/send?phone=5562992973853" 
         target="_blank" 
         rel="noopener noreferrer"
         className="fixed bottom-4 right-4 z-[90] bg-green-500 hover:bg-green-600 text-white p-4 rounded-full shadow-lg transition-transform hover:scale-110 flex items-center justify-center animate-bounce-slow"
@@ -630,6 +676,7 @@ ${customerInfo}
             setIsCartOpen(false);
             setIsUserOrdersOpen(true);
         } : undefined}
+        isAdmin={!!currentUser?.isAdmin}
       />
 
       <UserOrdersModal 
