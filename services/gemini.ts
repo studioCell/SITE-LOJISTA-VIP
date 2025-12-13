@@ -1,9 +1,17 @@
 import { GoogleGenAI } from "@google/genai";
 
-// Initialize the Gemini AI client
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+// Initialize the Gemini AI client safely
+// Checks if process is defined to avoid crashes in browser environments (Vite/Vercel)
+const apiKey = (typeof process !== 'undefined' && process.env) ? process.env.API_KEY : undefined;
+
+const ai = apiKey ? new GoogleGenAI({ apiKey }) : null;
 
 export const generateProductDescription = async (productName: string, currentPrice: number): Promise<string> => {
+  if (!ai) {
+    console.warn("Gemini AI API Key missing. Skipping description generation.");
+    return "Descrição automática indisponível (Chave de API não configurada).";
+  }
+
   try {
     const prompt = `
       Pesquise no Google Search as características técnicas e benefícios do produto: "${productName}".
