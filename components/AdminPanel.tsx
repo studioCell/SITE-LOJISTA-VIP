@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Product, ShopSettings, User, Order, OrderStatus } from '../types';
+import { Product, ShopSettings, User, Order, OrderStatus, Category } from '../types';
 import { Button } from './Button';
 import { ProductFormModal } from './ProductFormModal';
 import { 
@@ -16,7 +16,10 @@ import {
   toggleProductAvailability,
   deleteUser,
   updateUser,
-  fetchAddressByCep
+  fetchAddressByCep,
+  addCategory,
+  deleteCategory,
+  deleteAllProducts
 } from '../services/storage';
 import { PrintPreviewModal } from './PrintPreviewModal';
 
@@ -38,6 +41,7 @@ const AdminProductThumbnail = ({ src, alt }: { src?: string, alt: string }) => {
 
 interface AdminPanelProps {
   products: Product[];
+  categories: Category[];
   onAddProduct: (product: Omit<Product, 'id'>) => void;
   onUpdateProduct: (product: Product) => void;
   onDeleteProduct: (id: string) => void;
@@ -71,6 +75,7 @@ const STATUS_COLORS: Record<OrderStatus, string> = {
 // --- MAIN COMPONENT ---
 export const AdminPanel: React.FC<AdminPanelProps> = ({ 
   products, 
+  categories,
   onAddProduct, 
   onUpdateProduct, 
   onDeleteProduct,
@@ -93,11 +98,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
   // Orders State (Moved from SalesArea)
   const [orderStatusFilter, setOrderStatusFilter] = useState<OrderStatus | 'all'>('all');
-  const [localDiscounts, setLocalDiscounts] = useState<Record<string, string>>({});
-  const [localShippingCosts, setLocalShippingCosts] = useState<Record<string, string>>({});
-  const [editingAddressId, setEditingAddressId] = useState<string | null>(null);
-  const [addressForm, setAddressForm] = useState({ cep: '', street: '', number: '', district: '', city: '' });
-  const [loadingAddress, setLoadingAddress] = useState(false);
   const [previewOrder, setPreviewOrder] = useState<Order | null>(null);
 
   // Filters & UI State
@@ -108,6 +108,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   // Editing Client
   const [isEditingClient, setIsEditingClient] = useState<string | null>(null);
   const [editClientForm, setEditClientForm] = useState<Partial<User>>({});
+
+  // Category Management State
+  const [newCategoryName, setNewCategoryName] = useState('');
 
   useEffect(() => {
     const loadSettings = async () => {
@@ -185,11 +188,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       await updateOrder({ ...merged, total: updatedTotal });
   };
 
-  const handleToggleFee = async (order: Order, feeType: 'invoice' | 'insurance') => {
-      if (feeType === 'invoice') await updateOrderTotals(order, { wantsInvoice: !order.wantsInvoice });
-      else await updateOrderTotals(order, { wantsInsurance: !order.wantsInsurance });
-  };
-
   const handleStatusChange = async (order: Order, newStatus: OrderStatus) => {
       await updateOrder({
           ...order,
@@ -200,7 +198,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
   const handleFinalizeOrder = async (order: Order) => {
     await handleStatusChange(order, 'realizado');
-    // ... (WhatsApp logic remains same as SalesArea, omitted for brevity, button opens WA)
     alert("Pedido marcado como Finalizado!");
   };
 
@@ -263,6 +260,28 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     setEditingProduct(null);
   };
 
+  // --- CATEGORY ACTIONS ---
+  const handleAddCategory = async () => {
+      if (!newCategoryName.trim()) return;
+      await addCategory(newCategoryName);
+      setNewCategoryName('');
+  };
+
+  const handleDeleteCategory = async (id: string, name: string) => {
+      if (confirm(`ATENÇÃO: Apagar a categoria "${name}" irá apagar TODOS os produtos dentro dela.\n\nTem certeza que deseja continuar?`)) {
+          await deleteCategory(id, name);
+      }
+  };
+
+  const handleClearDatabase = async () => {
+      if (confirm('PERIGO: Isso irá apagar TODOS os produtos da loja.\n\nEssa ação não pode ser desfeita. Tem certeza absoluta?')) {
+          if (confirm('Confirme novamente: APAGAR TUDO?')) {
+              await deleteAllProducts();
+              alert('Banco de dados de produtos limpo.');
+          }
+      }
+  };
+
   // --- FILTERED LISTS ---
   const getDisplayedClients = () => {
       switch(clientFilterType) {
@@ -282,7 +301,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
         {[
             { id: 'dashboard', label: '📊 Dashboard' },
             { id: 'orders', label: '💰 Pedidos' },
-            { id: 'products', label: '📦 Produtos' },
+            { id: 'products', label: '📦 Produtos & Categorias' },
             { id: 'clients', label: '👥 Clientes' },
             { id: 'abandoned', label: '🛒 Carrinhos' },
             { id: 'settings', label: '⚙️ Configurações' }
@@ -606,10 +625,60 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
         {/* === PRODUCTS TAB === */}
         {activeTab === 'products' && (
             <div>
+               {/* Category Management Section */}
+               <div className="bg-gray-50 p-4 rounded-lg border border-gray-200 mb-6">
+                   <h3 className="font-bold text-gray-800 mb-3 flex items-center gap-2">
+                       📂 Gerenciar Categorias
+                       <span className="text-xs font-normal text-gray-500">(Apagar categoria = Apagar todos os produtos dela)</span>
+                   </h3>
+                   
+                   <div className="flex gap-2 mb-4">
+                       <input 
+                           type="text" 
+                           placeholder="Nome da nova categoria..." 
+                           className="border border-gray-300 rounded-lg px-3 py-2 text-sm flex-grow outline-none focus:border-orange-500"
+                           value={newCategoryName}
+                           onChange={(e) => setNewCategoryName(e.target.value)}
+                       />
+                       <button 
+                           onClick={handleAddCategory}
+                           disabled={!newCategoryName.trim()}
+                           className="bg-zinc-800 text-white px-4 py-2 rounded-lg font-bold text-sm hover:bg-zinc-900 disabled:opacity-50"
+                       >
+                           + Criar
+                       </button>
+                   </div>
+
+                   <div className="flex flex-wrap gap-2">
+                       {categories.map(cat => (
+                           <div key={cat.id} className="bg-white border border-gray-300 rounded-full px-3 py-1 text-xs font-medium flex items-center gap-2 shadow-sm">
+                               {cat.name}
+                               <button 
+                                   onClick={() => handleDeleteCategory(cat.id, cat.name)}
+                                   className="text-red-500 hover:text-red-700 font-bold px-1"
+                                   title="Apagar categoria e produtos"
+                               >
+                                   ×
+                               </button>
+                           </div>
+                       ))}
+                       {categories.length === 0 && <span className="text-sm text-gray-400 italic">Nenhuma categoria criada.</span>}
+                   </div>
+               </div>
+
                <div className="flex justify-between items-center mb-4">
                    <h3 className="font-bold text-gray-800">Catálogo</h3>
-                   <Button onClick={() => { setEditingProduct(null); setIsFormOpen(true); }} className="!bg-orange-600">+ Novo</Button>
+                   <div className="flex gap-2">
+                       <button 
+                           onClick={handleClearDatabase}
+                           className="bg-red-100 text-red-600 px-3 py-2 rounded-lg text-xs font-bold hover:bg-red-200 transition-colors border border-red-200"
+                       >
+                           🗑️ Excluir Todos os Produtos
+                       </button>
+                       <Button onClick={() => { setEditingProduct(null); setIsFormOpen(true); }} className="!bg-orange-600">+ Novo Produto</Button>
+                   </div>
                </div>
+               
                {/* Simplified Table */}
                <div className="overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200">
@@ -617,6 +686,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     <tr>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Produto</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Preço</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Categoria</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ativo?</th>
                       <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Ações</th>
                     </tr>
@@ -625,12 +695,15 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     {products.map((product) => (
                       <tr key={product.id}>
                         <td className="px-6 py-4 flex items-center gap-3">
-                            <div className="w-10 h-10 rounded overflow-hidden bg-gray-100">
+                            <div className="w-10 h-10 rounded overflow-hidden bg-gray-100 flex-shrink-0">
                                 <AdminProductThumbnail src={product.image} alt={product.name} />
                             </div>
-                            <span className="text-sm font-medium">{product.name}</span>
+                            <span className="text-sm font-medium line-clamp-2">{product.name}</span>
                         </td>
                         <td className="px-6 py-4 text-sm">R$ {product.price.toFixed(2)}</td>
+                        <td className="px-6 py-4 text-sm">
+                            <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded text-xs">{product.category}</span>
+                        </td>
                         <td className="px-6 py-4">
                             <div onClick={() => toggleProductAvailability(product.id)} className={`w-10 h-5 rounded-full cursor-pointer transition-colors relative ${product.available ? 'bg-green-500' : 'bg-gray-300'}`}>
                                 <div className={`w-4 h-4 bg-white rounded-full absolute top-0.5 transition-transform ${product.available ? 'left-5.5' : 'left-0.5'}`} />
@@ -642,6 +715,13 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                         </td>
                       </tr>
                     ))}
+                    {products.length === 0 && (
+                        <tr>
+                            <td colSpan={5} className="px-6 py-8 text-center text-gray-400">
+                                Nenhum produto cadastrado. Adicione categorias e produtos acima.
+                            </td>
+                        </tr>
+                    )}
                   </tbody>
                 </table>
                </div>
@@ -735,6 +815,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
           onClose={() => setIsFormOpen(false)}
           productToEdit={editingProduct}
           onSave={handleFormSave}
+          categories={categories}
       />
 
       <PrintPreviewModal 

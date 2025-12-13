@@ -59,7 +59,8 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart, 
       </div>
       
       <div className="p-4 flex flex-col flex-grow">
-        <h3 className="text-sm md:text-base font-medium text-gray-800 mb-2 line-clamp-2 min-h-[2.5rem] group-hover:text-orange-600 transition-colors leading-snug">
+        {/* Changed font-medium to font-extrabold as requested */}
+        <h3 className="text-sm md:text-base font-extrabold text-gray-800 mb-2 line-clamp-2 min-h-[2.5rem] group-hover:text-orange-600 transition-colors leading-snug">
           {product.name}
         </h3>
         

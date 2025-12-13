@@ -11,16 +11,18 @@ import {
   where, 
   onSnapshot,
   orderBy,
-  arrayUnion
+  arrayUnion,
+  writeBatch
 } from "firebase/firestore";
 import { db, isFirebaseConfigured } from "./firebase";
-import { Product, MOCK_PRODUCTS, Story, User, CartItem, ShopSettings, Order, OrderStatus } from '../types';
+import { Product, MOCK_PRODUCTS, Story, User, CartItem, ShopSettings, Order, OrderStatus, Category } from '../types';
 
 // Collections
 const PRODUCTS_COL = 'products';
 const STORIES_COL = 'stories';
 const USERS_COL = 'users';
 const SETTINGS_COL = 'settings';
+const CATEGORIES_COL = 'categories';
 const SETTINGS_DOC_ID = 'general_settings';
 const IMAGES_DOC_ID = 'site_images';
 const ORDERS_COL = 'orders';
@@ -29,7 +31,6 @@ const CURRENT_USER_KEY = 'lojista_vip_current_user';
 
 // --- Helpers ---
 const handleFirestoreError = (err: any, fallback: any = null) => {
-  // Check for common offline/connectivity errors and suppress loud warnings
   const msg = err?.message || '';
   if (err?.code === 'unavailable' || msg.includes('offline') || msg.includes('network')) {
     console.debug("Firestore offline/unavailable (using fallback data).");
@@ -43,7 +44,6 @@ const handleFirestoreError = (err: any, fallback: any = null) => {
 
 export const subscribeToProducts = (callback: (products: Product[]) => void) => {
   if (!isFirebaseConfigured) {
-    console.log("Firebase not configured, using MOCK_PRODUCTS");
     callback(MOCK_PRODUCTS);
     return () => {};
   }
@@ -52,18 +52,35 @@ export const subscribeToProducts = (callback: (products: Product[]) => void) => 
   return onSnapshot(q, 
     (snapshot) => {
       const products = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
-      if (products.length === 0) {
-        // Only use mocks if we have 0 real products and it might be first load
-        // But if DB is truly empty, we render empty. 
-        // For this demo, let's keep MOCK_PRODUCTS if empty to ensure site looks good.
-        callback(MOCK_PRODUCTS); 
-      } else {
-        callback(products);
-      }
+      callback(products);
     }, 
     (error) => {
       handleFirestoreError(error);
       callback(MOCK_PRODUCTS);
+    }
+  );
+};
+
+export const subscribeToCategories = (callback: (categories: Category[]) => void) => {
+  if (!isFirebaseConfigured) {
+    // Default categories if offline/not configured
+    callback([
+        { id: '1', name: 'Novidades' },
+        { id: '2', name: 'Eletrônicos' },
+        { id: '3', name: 'Casa' }
+    ]);
+    return () => {};
+  }
+
+  const q = query(collection(db, CATEGORIES_COL), orderBy('name'));
+  return onSnapshot(q, 
+    (snapshot) => {
+      const cats = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Category));
+      callback(cats);
+    },
+    (error) => {
+      handleFirestoreError(error);
+      callback([]);
     }
   );
 };
@@ -127,6 +144,37 @@ export const subscribeToUsers = (callback: (users: User[]) => void) => {
   );
 };
 
+// --- Categories CRUD ---
+
+export const addCategory = async (name: string) => {
+  if (!isFirebaseConfigured || !name.trim()) return;
+  try {
+    await addDoc(collection(db, CATEGORIES_COL), { name: name.trim() });
+  } catch (error) { handleFirestoreError(error); }
+};
+
+export const deleteCategory = async (id: string, name: string) => {
+  if (!isFirebaseConfigured) return;
+  try {
+    const batch = writeBatch(db);
+    
+    // 1. Delete the category doc
+    const catRef = doc(db, CATEGORIES_COL, id);
+    batch.delete(catRef);
+
+    // 2. Find all products with this category
+    const q = query(collection(db, PRODUCTS_COL), where("category", "==", name));
+    const snapshot = await getDocs(q);
+    
+    // 3. Delete those products
+    snapshot.docs.forEach((doc) => {
+      batch.delete(doc.ref);
+    });
+
+    await batch.commit();
+  } catch (error) { handleFirestoreError(error); }
+};
+
 // --- Products CRUD ---
 
 export const getStoredProducts = async (): Promise<Product[]> => {
@@ -144,7 +192,8 @@ export const getStoredProducts = async (): Promise<Product[]> => {
 export const addProduct = async (productData: Omit<Product, 'id'>) => {
   if (!isFirebaseConfigured) return;
   try {
-    await addDoc(collection(db, PRODUCTS_COL), { ...productData, available: true });
+    // Added createdAt field
+    await addDoc(collection(db, PRODUCTS_COL), { ...productData, available: true, createdAt: Date.now() });
   } catch (error) { handleFirestoreError(error); }
 };
 
@@ -180,6 +229,20 @@ export const toggleProductAvailability = async (id: string) => {
       await updateDoc(productRef, { available: !current });
     }
   } catch (error) { handleFirestoreError(error); }
+};
+
+// Dangerous: Delete All Products
+export const deleteAllProducts = async () => {
+    if (!isFirebaseConfigured) return;
+    try {
+        const q = query(collection(db, PRODUCTS_COL));
+        const snapshot = await getDocs(q);
+        const batch = writeBatch(db);
+        snapshot.docs.forEach(doc => {
+            batch.delete(doc.ref);
+        });
+        await batch.commit();
+    } catch (error) { handleFirestoreError(error); }
 };
 
 // --- Stories ---

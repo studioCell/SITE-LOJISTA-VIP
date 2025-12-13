@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Product, CATEGORIES } from '../types';
+import { Product, Category } from '../types';
 import { Button } from './Button';
 
 interface ProductFormModalProps {
@@ -7,13 +7,14 @@ interface ProductFormModalProps {
   onClose: () => void;
   productToEdit?: Product | null;
   onSave: (product: Omit<Product, 'id'> | Product) => void;
+  categories: Category[];
 }
 
-export const ProductFormModal: React.FC<ProductFormModalProps> = ({ isOpen, onClose, productToEdit, onSave }) => {
+export const ProductFormModal: React.FC<ProductFormModalProps> = ({ isOpen, onClose, productToEdit, onSave, categories }) => {
   const [formData, setFormData] = useState({
     name: '',
     price: '',
-    category: CATEGORIES[0],
+    category: '',
     image: '',
     description: ''
   });
@@ -32,10 +33,11 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({ isOpen, onCl
           description: productToEdit.description || '' // Ensure it's not undefined
         });
       } else {
-        setFormData({ name: '', price: '', category: CATEGORIES[0], image: '', description: '' });
+        // Default to first category if available
+        setFormData({ name: '', price: '', category: categories.length > 0 ? categories[0].name : '', image: '', description: '' });
       }
     }
-  }, [productToEdit, isOpen]);
+  }, [productToEdit, isOpen, categories]);
 
   // Reset error when image URL changes
   useEffect(() => {
@@ -58,7 +60,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({ isOpen, onCl
     const productData = {
       name: formData.name,
       price: isNaN(price) ? 0 : price,
-      category: formData.category,
+      category: formData.category || 'Geral', // Fallback
       image: formData.image.trim(), 
       description: formData.description,
       available: productToEdit ? productToEdit.available : true
@@ -82,6 +84,12 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({ isOpen, onCl
         <h2 className="text-xl font-bold text-gray-800 mb-4">
           {productToEdit ? 'Editar Produto' : 'Novo Produto'}
         </h2>
+
+        {categories.length === 0 && (
+            <div className="bg-yellow-50 text-yellow-800 p-3 mb-4 rounded text-sm border border-yellow-200">
+                ⚠️ Nenhuma categoria criada. Crie categorias no painel antes de adicionar produtos.
+            </div>
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
@@ -120,9 +128,13 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({ isOpen, onCl
                 onChange={(e) => setFormData({...formData, category: e.target.value})}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none bg-white"
               >
-                {CATEGORIES.map(cat => (
-                  <option key={cat} value={cat}>{cat}</option>
-                ))}
+                {categories.length > 0 ? (
+                    categories.map(cat => (
+                    <option key={cat.id} value={cat.name}>{cat.name}</option>
+                    ))
+                ) : (
+                    <option value="Geral">Geral</option>
+                )}
               </select>
             </div>
           </div>
@@ -176,7 +188,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({ isOpen, onCl
 
           <div className="flex justify-end gap-2 pt-4 border-t border-gray-100">
             <Button type="button" variant="outline" onClick={onClose}>Cancelar</Button>
-            <Button type="submit" className="!bg-orange-600 hover:!bg-orange-700">
+            <Button type="submit" disabled={categories.length === 0} className="!bg-orange-600 hover:!bg-orange-700">
               {productToEdit ? 'Salvar Alterações' : 'Criar Produto'}
             </Button>
           </div>

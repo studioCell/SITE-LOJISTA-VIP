@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Product, CartItem, Story, User, ShopSettings, Order } from './types';
+import { Product, CartItem, Story, User, ShopSettings, Order, Category } from './types';
 import { 
   subscribeToProducts,
   subscribeToStories,
+  subscribeToCategories,
   addProduct,
   updateProduct,
   deleteProduct,
@@ -42,6 +43,7 @@ import { ProductFormModal } from './components/ProductFormModal';
 function App() {
   const [products, setProducts] = useState<Product[]>([]);
   const [stories, setStories] = useState<Story[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [settings, setSettings] = useState<ShopSettings | null>(null);
   const [loading, setLoading] = useState(true);
@@ -101,7 +103,12 @@ function App() {
       setStories(data);
     });
 
-    // 3. Load Async Settings/Images
+    // 3. Subscribe to Categories
+    const unsubCategories = subscribeToCategories((data) => {
+        setCategories(data);
+    });
+
+    // 4. Load Async Settings/Images
     const loadAsyncData = async () => {
       const hImg = await getHeroImage();
       const lImg = await getLogo();
@@ -112,7 +119,7 @@ function App() {
     };
     loadAsyncData();
     
-    // 4. Check User
+    // 5. Check User
     const user = getCurrentUser();
     if (user) {
       setCurrentUser(user);
@@ -122,7 +129,6 @@ function App() {
         setCart(user.savedCart); 
       }
     } else {
-      // Prompt: "abra a pagina de login assim que vc abrir o site e nao estiver logado"
       setIsAuthOpen(true);
     }
 
@@ -130,6 +136,7 @@ function App() {
     return () => {
       unsubProducts();
       unsubStories();
+      unsubCategories();
     };
   }, []);
 
@@ -206,20 +213,16 @@ function App() {
     const total = subtotal + invoiceFee + insuranceFee;
     
     // Determine who is the "User" for the order
-    // If Admin selected a customer, use that customer. Otherwise use current user.
     const targetUser = customerOverride ? customerOverride.user : currentUser;
     const targetAddress = customerOverride ? customerOverride.address : null;
 
-    // Create the Order Object locally
-    // Save order if it's a regular user OR if it's an admin placing order for a user
     if ((currentUser && !currentUser.isAdmin) || (currentUser?.isAdmin && targetUser)) {
       const newOrder: Order = {
-        id: Date.now().toString(), // Temp ID, storage will generate Firestore ID
+        id: Date.now().toString(), // Temp ID
         userId: targetUser.id,
         userName: targetUser.name,
         userPhone: targetUser.phone || '',
         
-        // Use Address override if provided (Admin Mode), else fallback to user profile
         userCep: targetAddress?.cep || targetUser.cep,
         userCity: targetAddress?.city || targetUser.city,
         userStreet: targetAddress?.street,
@@ -235,7 +238,6 @@ function App() {
         history: [{ status: 'orcamento', timestamp: Date.now() }]
       };
       saveOrder(newOrder);
-      // Clear cart after creating order
       setCart([]);
     }
 
@@ -252,7 +254,6 @@ function App() {
         customerInfo += `\n*Cliente:* ${targetUser.name}`;
         customerInfo += `\n*Tel:* ${targetUser.phone || 'Não informado'}`;
         
-        // Format address for message
         if (targetAddress && targetAddress.street) {
              customerInfo += `\n*Endereço:* ${targetAddress.street}, ${targetAddress.number || 'S/N'}`;
              if(targetAddress.district) customerInfo += ` - ${targetAddress.district}`;
@@ -282,7 +283,6 @@ ${customerInfo}
     
     const encodedText = encodeURIComponent(text);
     const phoneNumber = settings?.contactNumber || '5562992973853';
-    // Using api.whatsapp.com ensures deep linking works correctly on all devices to fill the text box
     window.open(`https://api.whatsapp.com/send?phone=${phoneNumber}&text=${encodedText}`, '_blank');
     setIsCartOpen(false);
   };
@@ -320,13 +320,10 @@ ${customerInfo}
     setCurrentUser(null);
     setView('home');
     setCart([]); 
-    setIsAuthOpen(true); // Re-open auth modal on logout
+    setIsAuthOpen(true); 
   };
 
-  // Header Icon Logic
   const handleHeaderCartClick = () => {
-    // Always open cart on icon click
-    // Admins use the "PAINEL ADMIN" text link in the header for dashboard
     setIsCartOpen(true);
   };
 
@@ -384,7 +381,6 @@ ${customerInfo}
   };
 
   const handleStoryView = (story: Story) => {
-      // If user is logged in and not admin (admin doesn't count as view usually, or maybe it does? Let's exclude admin)
       if (currentUser && !currentUser.isAdmin) {
           markStoryAsViewed(story.id, currentUser.id);
       }
@@ -399,12 +395,10 @@ ${customerInfo}
     }
   };
 
-  // Trigger File Input for Hero
   const handleEditHero = () => {
     heroFileInputRef.current?.click();
   };
 
-  // Handle File Selection
   const handleHeroFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -443,17 +437,29 @@ ${customerInfo}
 
   const handleSelectCategory = (cat: string | null) => {
     setSelectedCategory(cat);
-    setCurrentPage(1); // Reset to page 1 on filter
+    setCurrentPage(1); 
     setView('home');
   };
 
   const isAdmin = currentUser?.isAdmin || false;
 
-  // Filter products: Category AND Availability (unless admin)
+  // --- Filtering Logic ---
   const availableProducts = isAdmin ? products : products.filter(p => p.available);
-  const filteredProducts = selectedCategory 
-    ? availableProducts.filter(p => p.category === selectedCategory)
-    : availableProducts;
+  
+  let filteredProducts = availableProducts;
+
+  if (selectedCategory === 'Novidades da Semana') {
+      // Show ALL products, sorted by createdAt descending (newest first)
+      filteredProducts = [...availableProducts].sort((a, b) => {
+          const dateA = a.createdAt || 0;
+          const dateB = b.createdAt || 0;
+          return dateB - dateA;
+      });
+  } else if (selectedCategory) {
+      // Filter by category
+      filteredProducts = availableProducts.filter(p => p.category === selectedCategory);
+  }
+  // Else (No category selected) -> Shows all products by default, order might be random or by ID as per standard Firestore fetch
 
   const totalPages = Math.ceil(filteredProducts.length / ITEMS_PER_PAGE);
   const displayedProducts = filteredProducts.slice(
@@ -465,7 +471,7 @@ ${customerInfo}
     if (!current) return [];
     return availableProducts
       .filter(p => p.category === current.category && p.id !== current.id)
-      .sort(() => 0.5 - Math.random()) // Shuffle
+      .sort(() => 0.5 - Math.random()) 
       .slice(0, 3);
   };
 
@@ -485,7 +491,6 @@ ${customerInfo}
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col font-sans relative">
-      {/* Hidden File Input for Hero Edit */}
       <input 
         type="file" 
         ref={heroFileInputRef}
@@ -501,7 +506,7 @@ ${customerInfo}
         onLoginClick={() => setIsAuthOpen(true)}
         onLogoutClick={handleLogout}
         onMenuClick={() => setIsMenuOpen(true)}
-        onAdminClick={() => setView('admin')} // Admin Link opens Main Admin Panel
+        onAdminClick={() => setView('admin')} 
         logo={logo}
       />
 
@@ -521,7 +526,8 @@ ${customerInfo}
               </button>
             </div>
             <AdminPanel 
-              products={products} 
+              products={products}
+              categories={categories}
               onAddProduct={handleAddProduct}
               onUpdateProduct={handleUpdateProduct}
               onDeleteProduct={handleDeleteProduct}
@@ -587,6 +593,7 @@ ${customerInfo}
                 </div>
                 
                 <CategoryFilter 
+                  categories={categories}
                   selectedCategory={selectedCategory}
                   onSelectCategory={handleSelectCategory}
                 />
@@ -594,11 +601,12 @@ ${customerInfo}
 
              {filteredProducts.length === 0 ? (
                <div className="text-center py-20 text-gray-400">
-                 <p className="text-lg">Nenhum produto encontrado nesta categoria.</p>
+                 <p className="text-lg">
+                     {products.length === 0 ? 'A loja está vazia. Adicione produtos no painel.' : 'Nenhum produto nesta categoria.'}
+                 </p>
                </div>
              ) : (
               <>
-                {/* Product Grid: 2 cols on mobile, 4 cols on large screens */}
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
                   {displayedProducts.map(product => (
                     <ProductCard 
@@ -612,7 +620,6 @@ ${customerInfo}
                   ))}
                 </div>
 
-                {/* Pagination Controls */}
                 {totalPages > 1 && (
                   <div className="flex justify-center items-center mt-10 gap-4">
                     <button 
@@ -642,7 +649,6 @@ ${customerInfo}
 
       <footer className="bg-zinc-900 border-t border-zinc-800 mt-12 py-8">
         <div className="max-w-7xl mx-auto px-4 text-center">
-          {/* Instagram Button */}
           <a 
             href="https://instagram.com/Lojista.vip" 
             target="_blank" 
@@ -658,7 +664,6 @@ ${customerInfo}
         </div>
       </footer>
 
-      {/* Floating WhatsApp Button */}
       <a 
         href="https://api.whatsapp.com/send?phone=5562992973853" 
         target="_blank" 
@@ -671,7 +676,6 @@ ${customerInfo}
         </svg>
       </a>
 
-      {/* Modals & Drawers */}
       <CartSidebar 
         isOpen={isCartOpen} 
         onClose={() => setIsCartOpen(false)} 
@@ -692,7 +696,6 @@ ${customerInfo}
         currentUser={currentUser}
       />
 
-      {/* Admin Sales Area */}
       <SalesArea 
         isOpen={isSalesAreaOpen}
         onClose={() => setIsSalesAreaOpen(false)}
@@ -707,6 +710,7 @@ ${customerInfo}
         onContact={handleContact}
         onLogout={handleLogout}
         currentUser={currentUser}
+        categories={categories}
         logo={logo}
       />
 
@@ -740,7 +744,7 @@ ${customerInfo}
           onDelete={handleDeleteStory}
           onGoToProduct={handleStoryProductLink}
           isAdmin={isAdmin}
-          users={isAdmin ? [] : undefined} // Users passed dynamically if needed, or fetched inside StoryViewer for admin
+          users={isAdmin ? [] : undefined} 
         />
       )}
 
@@ -759,12 +763,12 @@ ${customerInfo}
         onSave={handleSaveEditedOrder}
       />
 
-      {/* Quick Edit Modal for Admins */}
       <ProductFormModal 
         isOpen={isProductFormOpen}
         onClose={() => setIsProductFormOpen(false)}
         productToEdit={quickEditingProduct}
         onSave={handleQuickSaveProduct}
+        categories={categories}
       />
     </div>
   );

@@ -1,5 +1,5 @@
 import React from 'react';
-import { CATEGORIES, User } from '../types';
+import { User, Category } from '../types';
 
 interface MenuDrawerProps {
   isOpen: boolean;
@@ -9,6 +9,7 @@ interface MenuDrawerProps {
   onContact: () => void;
   onLogout: () => void;
   currentUser: User | null;
+  categories: Category[];
   logo?: string;
 }
 
@@ -20,6 +21,7 @@ export const MenuDrawer: React.FC<MenuDrawerProps> = ({
   onContact,
   onLogout,
   currentUser,
+  categories,
   logo
 }) => {
   return (
@@ -67,18 +69,19 @@ export const MenuDrawer: React.FC<MenuDrawerProps> = ({
             <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Categorias</h3>
           </div>
           <div className="flex flex-col">
-            {CATEGORIES.map(cat => (
+            {categories.map(cat => (
               <button 
-                key={cat}
+                key={cat.id}
                 onClick={() => {
-                  onSelectCategory(cat);
+                  onSelectCategory(cat.name);
                   onClose();
                 }}
                 className="px-5 py-3 text-left text-gray-700 hover:bg-orange-50 hover:text-orange-700 hover:border-r-4 border-orange-600 transition-all text-sm font-medium"
               >
-                {cat}
+                {cat.name}
               </button>
             ))}
+            {categories.length === 0 && <p className="px-5 text-sm text-gray-400 italic">Nenhuma categoria.</p>}
           </div>
 
           <div className="border-t border-gray-100 my-4 pt-4">
@@ -123,7 +126,7 @@ export const MenuDrawer: React.FC<MenuDrawerProps> = ({
         </div>
 
         <div className="p-5 border-t border-gray-100 bg-gray-50 text-center text-xs text-gray-400">
-          Lojista VIP App v1.3
+          Lojista VIP App v1.4
         </div>
       </div>
     </>
