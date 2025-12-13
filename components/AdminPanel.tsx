@@ -769,6 +769,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
         logo={logoUrl}
         isAdmin={true}
       />
+    </div>
     </>
   );
 };

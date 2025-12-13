@@ -22,7 +22,11 @@ export const OrderEditModal: React.FC<OrderEditModalProps> = ({ isOpen, onClose,
     if (order) {
       setItems(JSON.parse(JSON.stringify(order.items)));
       // Load products for the "Add" feature
-      setAllProducts(getStoredProducts());
+      const loadProducts = async () => {
+        const products = await getStoredProducts();
+        setAllProducts(products);
+      };
+      loadProducts();
     }
     // Reset mode when opening
     setIsAddingMode(false);

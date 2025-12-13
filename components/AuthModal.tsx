@@ -5,8 +5,8 @@ import { fetchAddressByCep } from '../services/storage';
 interface AuthModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onLogin: (identifier: string, pass: string, remember: boolean) => { success: boolean; message: string };
-  onRegister: (data: { name: string; phone: string; cep: string; city: string; password: string }) => { success: boolean; message: string };
+  onLogin: (identifier: string, pass: string, remember: boolean) => Promise<{ success: boolean; message: string }> | { success: boolean; message: string };
+  onRegister: (data: { name: string; phone: string; cep: string; city: string; password: string }) => Promise<{ success: boolean; message: string }> | { success: boolean; message: string };
   logo?: string;
 }
 
@@ -57,11 +57,18 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLogin, 
     setError('');
     
     if (mode === 'login') {
-      const result = onLogin(identifier, password, remember);
-      if (result.success) {
-        onClose();
-      } else {
-        setError(result.message);
+      setLoading(true);
+      try {
+        const result = await onLogin(identifier, password, remember);
+        if (result.success) {
+          onClose();
+        } else {
+          setError(result.message);
+        }
+      } catch (err) {
+        setError('Erro ao fazer login. Tente novamente.');
+      } finally {
+        setLoading(false);
       }
     } else {
       // Validation
@@ -71,23 +78,26 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLogin, 
       }
       
       setLoading(true);
-      // Simulate network delay for UX
-      await new Promise(r => setTimeout(r, 500));
+      // Simulate network delay for UX is handled by async call now
       
-      const result = onRegister({
-        name: regName,
-        phone: regPhone,
-        cep: regCep,
-        city: regCity,
-        password: regPass
-      });
-      
-      setLoading(false);
-      
-      if (result.success) {
-        onClose();
-      } else {
-        setError(result.message);
+      try {
+        const result = await onRegister({
+          name: regName,
+          phone: regPhone,
+          cep: regCep,
+          city: regCity,
+          password: regPass
+        });
+        
+        if (result.success) {
+          onClose();
+        } else {
+          setError(result.message);
+        }
+      } catch (err) {
+        setError('Erro ao cadastrar. Tente novamente.');
+      } finally {
+        setLoading(false);
       }
     }
   };
