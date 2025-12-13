@@ -1,22 +1,44 @@
 import React, { useState, useEffect } from 'react';
 import { Product, ShopSettings, User, Order, OrderStatus } from '../types';
 import { Button } from './Button';
-import { generateProductDescription } from '../services/gemini';
 import { ProductFormModal } from './ProductFormModal';
 import { 
   getShopSettings, 
   saveShopSettings, 
   getHeroImage, 
   saveHeroImage, 
-  subscribeToUsers, // CHANGED
-  subscribeToOrders, // CHANGED
+  subscribeToUsers, 
+  subscribeToOrders, 
   updateOrder,
   getLogo,
   saveLogo,
   updateUserPassword,
   toggleProductAvailability
 } from '../services/storage';
-import { printOrder } from '../services/printing';
+import { PrintPreviewModal } from './PrintPreviewModal';
+
+// --- Internal Component for Safe Image Rendering ---
+const AdminProductThumbnail = ({ src, alt }: { src?: string, alt: string }) => {
+  const [error, setError] = useState(false);
+
+  // If error occurs or no source, show placeholder
+  if (error || !src || src.trim() === '') {
+    return (
+       <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+       </svg>
+    );
+  }
+  
+  return (
+    <img 
+      className="h-full w-full object-cover" 
+      src={src} 
+      alt={alt} 
+      onError={() => setError(true)} 
+    />
+  );
+};
 
 interface AdminPanelProps {
   products: Product[];
@@ -88,6 +110,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   // Filters State
   const [statusFilter, setStatusFilter] = useState<OrderStatus | 'all'>('all');
   const [cityFilter, setCityFilter] = useState('');
+  
+  // Print Modal State
+  const [previewOrder, setPreviewOrder] = useState<Order | null>(null);
 
   // Initial Data Loading
   useEffect(() => {
@@ -140,8 +165,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
   const handleToggleAvailability = (id: string) => {
     toggleProductAvailability(id);
-    // UI updates via App.tsx subscription, but we might want optimistic UI here
-    // For now, rely on fast Firestore callback
   };
 
 
@@ -199,52 +222,40 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       history: [...order.history, { status: newStatus, timestamp: Date.now() }]
     };
 
-    // Optimistic update locally not needed because subscription handles it fast
-    // but we call service
     await updateOrder(updatedOrder);
-    sendOrderUpdateMessage(updatedOrder, newStatus);
   };
 
   const handlePrintOrder = (order: Order) => {
-    // Pass isAdmin = true for AdminPanel
-    printOrder(order, settings, logoUrl, true);
+    setPreviewOrder(order);
   };
 
-  const sendOrderUpdateMessage = (order: Order, status: OrderStatus) => {
-    let message = '';
+  const handleSendUpdate = (order: Order) => {
     const name = order.userName.split(' ')[0];
+    const itemsList = order.items.map(i => `• ${i.quantity}x ${i.name}`).join('\n');
+    let message = '';
 
-    switch (status) {
-      case 'orcamento':
-        message = `Olá ${name}, atualizamos o orçamento do seu pedido (#${order.id.slice(-4)}). Dê uma olhada!`;
-        break;
-      case 'realizado':
-        message = `Olá ${name}, recebemos seu pedido #${order.id.slice(-4)}. Em breve entraremos em contato para o pagamento.`;
-        break;
-      case 'pagamento_pendente':
-        message = `Olá ${name}, seu pedido #${order.id.slice(-4)} foi confirmado! Segue os dados para pagamento PIX...`;
-        break;
-      case 'preparacao':
-        message = `Tudo certo, ${name}! Estamos separando e embalando seu pedido #${order.id.slice(-4)}.`;
-        break;
-      case 'transporte':
-        message = `Ótima notícia, ${name}! Seu pedido #${order.id.slice(-4)} está a caminho. \nAcompanhe seu pedido por esse link de rastreio: ${order.trackingCode || 'Solicite o link'}`;
-        break;
-      case 'entregue':
-        message = `Olá ${name}! Consta que seu pedido #${order.id.slice(-4)} foi entregue. Chegou tudo certinho? Adoraríamos seu feedback!`;
-        break;
-      case 'devolucao':
-        message = `Olá ${name}, iniciamos o processo de devolução do pedido #${order.id.slice(-4)}.`;
-        break;
-      case 'cancelado':
-        message = `Olá ${name}, o pedido #${order.id.slice(-4)} foi cancelado.`;
-        break;
+    switch (order.status) {
+        case 'orcamento':
+            message = `Olá ${name}! 👋\nRecebemos seu orçamento. Aguarde, em breve confirmaremos a disponibilidade e valores.`;
+            break;
+        case 'pagamento_pendente':
+            message = `*PEDIDO FINALIZADO #${order.id.slice(-6)}* ✅\n------------------------------\n*ITENS:*\n${itemsList}\n\n*Total a Pagar:* R$ ${order.total.toFixed(2)}\n\n*DADOS PIX:*\nChave: ${settings?.pixKey || 'Solicite'}\nNome: ${settings?.pixName}\nBanco: ${settings?.pixBank}\n\nEnvie o comprovante para confirmar!`;
+            break;
+        case 'preparacao':
+            message = `Pagamento Confirmado! ✅\n\nOlá ${name}, seu pedido #${order.id.slice(-6)} já está em separação e embalagem.`;
+            break;
+        case 'transporte':
+            message = `Saiu para Entrega/Envio! 🚚\n\nOlá ${name}, seu pedido #${order.id.slice(-6)} está a caminho.\n${order.trackingCode ? `Rastreio: ${order.trackingCode}` : ''}`;
+            break;
+        case 'entregue':
+            message = `Pedido Entregue! 🎁\n\nOlá ${name}, consta que seu pedido foi entregue. Esperamos que tenha gostado!\nSe puder, mande uma foto do produto recebido.`;
+            break;
+        default:
+            message = `Atualização do Pedido #${order.id.slice(-6)}: Novo status: *${STATUS_LABELS[order.status]}*.`;
     }
 
-    if (message) {
-      const encoded = encodeURIComponent(message);
-      window.open(`https://wa.me/55${order.userPhone.replace(/\D/g, '')}?text=${encoded}`, '_blank');
-    }
+    const encoded = encodeURIComponent(message);
+    window.open(`https://wa.me/55${order.userPhone.replace(/\D/g, '')}?text=${encoded}`, '_blank');
   };
 
   const handlePasswordUpdate = async (userId: string) => {
@@ -269,6 +280,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   const totalOrders = orders.length;
 
   return (
+    <>
     <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden min-h-[500px]">
       {/* Tabs */}
       <div className="flex border-b border-gray-100 overflow-x-auto bg-zinc-900 text-white">
@@ -322,13 +334,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                       <td className="px-6 py-4">
                         <div className="flex items-center">
                           <div className={`h-10 w-10 flex-shrink-0 rounded-full flex items-center justify-center overflow-hidden ${product.available ? 'bg-gray-100' : 'bg-gray-200 opacity-50'}`}>
-                            {product.image ? (
-                              <img className="h-full w-full object-cover" src={product.image} alt="" />
-                            ) : (
-                              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                              </svg>
-                            )}
+                            <AdminProductThumbnail src={product.image} alt={product.name} />
                           </div>
                           <div className={`ml-4 ${!product.available && 'opacity-50'}`}>
                             <div className="text-sm font-medium text-gray-900">{product.name}</div>
@@ -456,7 +462,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                          
                          {/* Password Management */}
                          <div className="mb-6 bg-red-50 border border-red-100 rounded-lg p-4">
-                            {/* ... password fields same as before ... */}
                             <h3 className="text-xs font-bold text-red-800 uppercase tracking-wide mb-3 flex items-center gap-2">
                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
@@ -544,38 +549,31 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                                    </ul>
                                  </div>
 
-                                 <div className="flex flex-wrap gap-2 items-center pt-4 border-t border-gray-100">
-                                    <span className="text-xs font-bold text-gray-500 uppercase mr-2">Alterar Status:</span>
-                                    
-                                    <button 
-                                      onClick={() => updateOrderStatus(order, 'orcamento')}
-                                      className={`px-3 py-1 text-xs rounded border transition-colors ${order.status === 'orcamento' ? 'bg-gray-200 border-gray-400 font-bold' : 'bg-white border-gray-200 hover:bg-gray-50'}`}
-                                    >
-                                      Orçamento
-                                    </button>
-                                    
-                                    <button 
-                                      onClick={() => updateOrderStatus(order, 'realizado')}
-                                      className={`px-3 py-1 text-xs rounded border transition-colors ${order.status === 'realizado' ? 'bg-blue-200 border-blue-400 font-bold text-blue-800' : 'bg-white border-gray-200 hover:bg-blue-50'}`}
-                                    >
-                                      Realizado
-                                    </button>
+                                 <div className="flex flex-wrap gap-2 items-center justify-between pt-4 border-t border-gray-100">
+                                    <div className="flex flex-wrap gap-2 items-center">
+                                        <span className="text-xs font-bold text-gray-500 uppercase mr-2">Alterar Status:</span>
+                                        <select 
+                                            value={order.status}
+                                            onChange={(e) => updateOrderStatus(order, e.target.value as OrderStatus)}
+                                            className={`text-xs font-bold uppercase py-1 px-2 rounded border border-gray-300 outline-none cursor-pointer bg-white focus:border-orange-500`}
+                                        >
+                                            {Object.entries(STATUS_LABELS).map(([key, label]) => (
+                                                <option key={key} value={key}>{label}</option>
+                                            ))}
+                                        </select>
+                                        
+                                        <button 
+                                            onClick={() => handleSendUpdate(order)}
+                                            className="text-xs bg-green-500 text-white hover:bg-green-600 px-3 py-1.5 rounded font-bold flex items-center gap-1 transition-colors ml-2"
+                                        >
+                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                                            </svg>
+                                            Enviar Atualização
+                                        </button>
+                                    </div>
 
-                                    <button 
-                                      onClick={() => updateOrderStatus(order, 'pagamento_pendente')}
-                                      className={`px-3 py-1 text-xs rounded border transition-colors ${order.status === 'pagamento_pendente' ? 'bg-yellow-200 border-yellow-400 font-bold text-yellow-800' : 'bg-white border-gray-200 hover:bg-yellow-50'}`}
-                                    >
-                                      Aguard. Pagamento
-                                    </button>
-
-                                    <button 
-                                      onClick={() => updateOrderStatus(order, 'preparacao')}
-                                      className={`px-3 py-1 text-xs rounded border transition-colors ${order.status === 'preparacao' ? 'bg-orange-200 border-orange-400 font-bold text-orange-800' : 'bg-white border-gray-200 hover:bg-orange-50'}`}
-                                    >
-                                      Preparação
-                                    </button>
-
-                                    <div className="flex items-center gap-1 border border-indigo-200 rounded px-1 bg-indigo-50">
+                                    <div className="flex items-center gap-1 border border-indigo-200 rounded px-1 bg-indigo-50 mt-2 sm:mt-0">
                                       <input 
                                         type="text" 
                                         placeholder="Link Rastreio" 
@@ -587,30 +585,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                                         onClick={() => updateOrderStatus(order, 'transporte')}
                                         className={`px-2 py-1 text-xs rounded transition-colors bg-indigo-500 text-white hover:bg-indigo-600`}
                                       >
-                                        Enviar
+                                        Salvar Rastreio
                                       </button>
                                     </div>
-
-                                    <button 
-                                      onClick={() => updateOrderStatus(order, 'entregue')}
-                                      className={`px-3 py-1 text-xs rounded border transition-colors ${order.status === 'entregue' ? 'bg-green-200 border-green-400 font-bold text-green-800' : 'bg-white border-green-200 hover:bg-green-50 text-green-700'}`}
-                                    >
-                                      Entregue
-                                    </button>
-                                    
-                                    <button 
-                                      onClick={() => updateOrderStatus(order, 'devolucao')}
-                                      className={`px-3 py-1 text-xs rounded border transition-colors ${order.status === 'devolucao' ? 'bg-red-200 border-red-400 font-bold text-red-800' : 'bg-white border-gray-200 hover:bg-red-50 text-red-600'}`}
-                                    >
-                                      Devolução
-                                    </button>
-
-                                    <button 
-                                      onClick={() => updateOrderStatus(order, 'cancelado')}
-                                      className={`px-3 py-1 text-xs rounded border transition-colors ${order.status === 'cancelado' ? 'bg-gray-800 border-gray-900 font-bold text-white' : 'bg-white border-gray-400 hover:bg-gray-200 text-gray-600'}`}
-                                    >
-                                      Cancelado
-                                    </button>
                                  </div>
                                </div>
                              ))}
@@ -782,6 +759,16 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
         productToEdit={editingProduct}
         onSave={handleFormSave}
       />
-    </div>
+      
+      {/* Shared Print Preview Modal */}
+      <PrintPreviewModal 
+        isOpen={!!previewOrder}
+        onClose={() => setPreviewOrder(null)}
+        order={previewOrder}
+        settings={settings}
+        logo={logoUrl}
+        isAdmin={true}
+      />
+    </>
   );
 };

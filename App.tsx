@@ -197,6 +197,8 @@ function App() {
         userId: currentUser.id,
         userName: currentUser.name,
         userPhone: currentUser.phone || '',
+        userCep: currentUser.cep,
+        userCity: currentUser.city,
         items: [...cart],
         total: total,
         status: 'orcamento',
@@ -210,22 +212,31 @@ function App() {
 
     // Build WA Message
     const lines = cart.map(item => {
-      let line = `${item.quantity}x ${item.name} - R$ ${(item.price * item.quantity).toFixed(2)}`;
+      let line = `• ${item.quantity}x ${item.name}`;
+      line += `\n   (Un: R$ ${item.price.toFixed(2)})`; // Explicit Unit Price
       if (item.note) line += `\n   Obs: ${item.note}`;
       return line;
     });
 
-    const userText = currentUser ? `\n*Cliente:* ${currentUser.name}\n*Tel:* ${currentUser.phone || ''}` : '';
+    let customerInfo = "";
+    if (currentUser) {
+        customerInfo += `\n*Cliente:* ${currentUser.name}`;
+        customerInfo += `\n*Tel:* ${currentUser.phone || 'Não informado'}`;
+        if (currentUser.city) {
+            customerInfo += `\n*Endereço:* ${currentUser.city}`;
+            if (currentUser.cep) customerInfo += ` - CEP: ${currentUser.cep}`;
+        }
+    }
 
     const text = 
-`*Novo Pedido (Orçamento) - JL Variedades*
+`*Novo Pedido - Lojista Vip*
 ----------------------------
 ${lines.join('\n')}
 ----------------------------
-*Total Geral: R$ ${total.toFixed(2)}*
-${userText}
+*Total Produtos: R$ ${total.toFixed(2)}*
+${customerInfo}
 
-*Aguardando confirmação do vendedor...*
+*Aguardando cálculo do frete e confirmação...*
 `;
     
     const encodedText = encodeURIComponent(text);
@@ -524,7 +535,7 @@ ${userText}
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-2xl font-bold text-gray-800">Catálogo de Produtos</h2>
                   <div className="flex gap-2">
-                    <span className="bg-orange-100 text-orange-800 text-xs font-semibold px-2.5 py-0.5 rounded">JL Variedades</span>
+                    <span className="bg-orange-100 text-orange-800 text-xs font-semibold px-2.5 py-0.5 rounded">Lojista Vip</span>
                   </div>
                 </div>
                 
@@ -584,7 +595,7 @@ ${userText}
 
       <footer className="bg-zinc-900 border-t border-zinc-800 mt-12 py-8">
         <div className="max-w-7xl mx-auto px-4 text-center text-gray-400 text-sm">
-          <p>&copy; {new Date().getFullYear()} JL Variedades. Todos os direitos reservados.</p>
+          <p>&copy; {new Date().getFullYear()} Lojista Vip. Todos os direitos reservados.</p>
         </div>
       </footer>
 

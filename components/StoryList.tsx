@@ -10,9 +10,13 @@ interface StoryListProps {
 
 const getTimeAgo = (timestamp: number) => {
     const diff = Date.now() - timestamp;
-    const hours = Math.floor(diff / (1000 * 60 * 60));
-    if (hours < 1) return 'Há pouco';
-    return `Há ${hours}h`;
+    const minutes = Math.floor(diff / (1000 * 60));
+    const hours = Math.floor(minutes / 60);
+
+    if (minutes < 2) return 'Agora';
+    if (minutes < 60) return `${minutes} min`;
+    if (hours < 24) return `${hours} h`;
+    return '1 dia+';
 };
 
 export const StoryList: React.FC<StoryListProps> = ({ stories, isAdmin, onAddClick, onStoryClick }) => {

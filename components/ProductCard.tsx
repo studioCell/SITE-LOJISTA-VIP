@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Product, User } from '../types';
 import { Button } from './Button';
 
@@ -11,22 +11,21 @@ interface ProductCardProps {
 }
 
 export const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart, onClick, currentUser, onEdit }) => {
+  const [imgError, setImgError] = useState(false);
+
   return (
     <div 
       className="group bg-white rounded-2xl shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 overflow-hidden border border-gray-100 flex flex-col h-full cursor-pointer relative"
       onClick={() => onClick(product)}
     >
       <div className="relative pt-[100%] overflow-hidden bg-gray-50">
-        {product.image ? (
+        {product.image && !imgError ? (
           <img 
             src={product.image} 
             alt={product.name}
             className="absolute top-0 left-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
             loading="lazy"
-            onError={(e) => {
-              e.currentTarget.style.display = 'none';
-              e.currentTarget.parentElement?.classList.add('flex', 'items-center', 'justify-center');
-            }}
+            onError={() => setImgError(true)}
           />
         ) : (
           <div className="absolute top-0 left-0 w-full h-full flex items-center justify-center text-gray-300">

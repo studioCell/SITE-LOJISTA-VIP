@@ -33,11 +33,11 @@ export const Header: React.FC<HeaderProps> = ({
               <img src={logo} alt="Logo" className="w-10 h-10 rounded-lg object-contain mr-3 bg-white" />
             ) : (
               <div className="w-10 h-10 bg-gradient-to-tr from-orange-500 to-red-600 rounded-lg flex items-center justify-center text-white font-bold text-xl mr-3 shadow-lg shadow-orange-500/20">
-                JL
+                LV
               </div>
             )}
             <div>
-              <h1 className="text-xl font-bold text-white leading-tight">JL Variedades</h1>
+              <h1 className="text-xl font-bold text-white leading-tight">Lojista Vip</h1>
               <p className="text-xs text-gray-400">Toque para ver categorias</p>
             </div>
           </div>
