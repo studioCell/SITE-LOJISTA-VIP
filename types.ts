@@ -6,8 +6,9 @@ export interface Product {
   description: string;
   image: string;
   category: string;
-  available: boolean; // New field for stock/visibility toggle
-  createdAt?: number; // Timestamp for sorting new items
+  available: boolean; 
+  createdAt?: number;
+  views?: number; // New: Track popularity
 }
 
 export interface CartItem extends Product {
@@ -18,34 +19,43 @@ export interface CartItem extends Product {
 export interface User {
   id: string;
   name: string;
-  username?: string; // For admin
-  phone?: string; // For customers
+  username?: string; 
+  phone?: string; 
+  
+  // Address Fields
   cep?: string;
   city?: string;
+  street?: string;
+  number?: string;
+  district?: string;
+  complement?: string;
+
   password?: string;
   isAdmin: boolean;
+  isVendor?: boolean; // New: Vendor Role
   savedCart?: CartItem[];
-  createdAt?: number; // Added for "New Client" logic
+  createdAt?: number;
 }
 
 export interface Story {
   id: string;
-  imageUrl: string; // Acts as mediaUrl (base64)
+  imageUrl: string; 
   type: 'image' | 'video';
   caption: string;
   createdAt: number;
   expiresAt: number;
   productId?: string;
-  views?: string[]; // Array of User IDs who viewed
+  views?: string[]; 
 }
 
 export interface ShopSettings {
+  shopName?: string; // New
+  minOrderValue?: number; // New
   aboutUs: string;
   shippingPolicy: string;
   warrantyPolicy: string;
   feesPolicy: string;
-  contactNumber: string; // WhatsApp
-  // PIX Config
+  contactNumber: string; 
   pixKey: string;
   pixName: string;
   pixBank: string;
@@ -78,22 +88,23 @@ export interface Order {
   userStreet?: string;
   userNumber?: string;
   userDistrict?: string;
+  userComplement?: string; // New: Address Complement
 
   items: CartItem[];
   total: number;
-  discount?: number; // New field for discount
-  shippingCost?: number; // Optional shipping cost
+  discount?: number; 
+  shippingCost?: number; 
   shippingMethod?: string; // e.g., 'Motoboy', 'Correios'
   
   // Fees
-  wantsInvoice?: boolean; // 6%
-  wantsInsurance?: boolean; // 3%
+  wantsInvoice?: boolean; 
+  wantsInsurance?: boolean; 
 
   status: OrderStatus;
   createdAt: number;
   trackingCode?: string;
+  sellerId?: string; // New: Track which vendor made the sale
   history: { status: OrderStatus; timestamp: number }[];
 }
 
-// Inicialmente vazio para você cadastrar
 export const MOCK_PRODUCTS: Product[] = [];

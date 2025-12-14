@@ -13,6 +13,8 @@ interface ProductCardProps {
 export const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart, onClick, currentUser, onEdit }) => {
   const [imgError, setImgError] = useState(false);
 
+  const isStaff = currentUser?.isAdmin || currentUser?.isVendor;
+
   return (
     <div 
       className="group bg-white rounded-2xl shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 overflow-hidden border border-gray-100 flex flex-col h-full cursor-pointer relative"
@@ -59,7 +61,6 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart, 
       </div>
       
       <div className="p-4 flex flex-col flex-grow">
-        {/* Changed font-medium to font-extrabold as requested */}
         <h3 className="text-sm md:text-base font-extrabold text-gray-800 mb-2 line-clamp-2 min-h-[2.5rem] group-hover:text-orange-600 transition-colors leading-snug">
           {product.name}
         </h3>
@@ -78,11 +79,13 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart, 
               e.stopPropagation();
               onAddToCart(product);
             }}
-            className="!rounded-lg !px-3 !py-2 shadow-orange-500/20 !bg-green-600 hover:!bg-green-700 transition-transform"
+            className={`!rounded-lg !px-3 !py-2 shadow-orange-500/20 transition-transform ${isStaff ? '!bg-zinc-800 hover:!bg-zinc-900' : '!bg-green-600 hover:!bg-green-700'}`}
             aria-label="Comprar"
           >
             <div className="flex flex-col items-center leading-none">
-                <span className="text-[10px] font-medium opacity-90">COMPRAR</span>
+                <span className="text-[10px] font-medium opacity-90">
+                    {isStaff ? 'SELECIONAR' : 'COMPRAR'}
+                </span>
             </div>
           </Button>
         </div>

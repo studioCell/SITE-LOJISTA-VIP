@@ -1,3 +1,4 @@
+
 import React, { useRef } from 'react';
 import { Order, OrderStatus, ShopSettings } from '../types';
 import { Button } from './Button';
@@ -92,6 +93,7 @@ export const PrintPreviewModal: React.FC<PrintPreviewModalProps> = ({
             <p class="info"><strong>Cliente:</strong> ${order.userName}</p>
             <p class="info"><strong>Telefone:</strong> ${order.userPhone}</p>
             <p class="info"><strong>Endereço:</strong> ${order.userStreet ? `${order.userStreet}, ${order.userNumber}` : (order.userCity || 'N/A')}</p>
+            ${order.userComplement ? `<p class="info"><strong>Comp:</strong> ${order.userComplement}</p>` : ''}
             ${order.userDistrict ? `<p class="info"><strong>Bairro:</strong> ${order.userDistrict}</p>` : ''}
           </div>
 

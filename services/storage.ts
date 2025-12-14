@@ -12,7 +12,8 @@ import {
   onSnapshot,
   orderBy,
   arrayUnion,
-  writeBatch
+  writeBatch,
+  increment
 } from "firebase/firestore";
 import { db, isFirebaseConfigured } from "./firebase";
 import { Product, MOCK_PRODUCTS, Story, User, CartItem, ShopSettings, Order, OrderStatus, Category } from '../types';
@@ -40,6 +41,13 @@ const handleFirestoreError = (err: any, fallback: any = null) => {
   return fallback;
 };
 
+// CRITICAL: Helper to remove 'undefined' values which cause Firestore to crash
+const sanitizePayload = (data: any): any => {
+  // Simple hack: JSON stringify removes 'undefined' keys automatically
+  // and converts dates/complex objects to compatible formats
+  return JSON.parse(JSON.stringify(data));
+};
+
 // --- Real-time Listeners (Subscriptions) ---
 
 export const subscribeToProducts = (callback: (products: Product[]) => void) => {
@@ -63,7 +71,6 @@ export const subscribeToProducts = (callback: (products: Product[]) => void) => 
 
 export const subscribeToCategories = (callback: (categories: Category[]) => void) => {
   if (!isFirebaseConfigured) {
-    // Default categories if offline/not configured
     callback([
         { id: '1', name: 'Novidades' },
         { id: '2', name: 'Eletrônicos' },
@@ -157,20 +164,13 @@ export const deleteCategory = async (id: string, name: string) => {
   if (!isFirebaseConfigured) return;
   try {
     const batch = writeBatch(db);
-    
-    // 1. Delete the category doc
     const catRef = doc(db, CATEGORIES_COL, id);
     batch.delete(catRef);
-
-    // 2. Find all products with this category
     const q = query(collection(db, PRODUCTS_COL), where("category", "==", name));
     const snapshot = await getDocs(q);
-    
-    // 3. Delete those products
     snapshot.docs.forEach((doc) => {
       batch.delete(doc.ref);
     });
-
     await batch.commit();
   } catch (error) { handleFirestoreError(error); }
 };
@@ -192,8 +192,8 @@ export const getStoredProducts = async (): Promise<Product[]> => {
 export const addProduct = async (productData: Omit<Product, 'id'>) => {
   if (!isFirebaseConfigured) return;
   try {
-    // Added createdAt field
-    await addDoc(collection(db, PRODUCTS_COL), { ...productData, available: true, createdAt: Date.now() });
+    const safeData = sanitizePayload({ ...productData, available: true, createdAt: Date.now(), views: 0 });
+    await addDoc(collection(db, PRODUCTS_COL), safeData);
   } catch (error) { handleFirestoreError(error); }
 };
 
@@ -201,7 +201,7 @@ export const updateProduct = async (product: Product) => {
   if (!isFirebaseConfigured) return;
   try {
     const { id, ...data } = product;
-    await updateDoc(doc(db, PRODUCTS_COL, id), data);
+    await updateDoc(doc(db, PRODUCTS_COL, id), sanitizePayload(data));
   } catch (error) { handleFirestoreError(error); }
 };
 
@@ -231,7 +231,14 @@ export const toggleProductAvailability = async (id: string) => {
   } catch (error) { handleFirestoreError(error); }
 };
 
-// Dangerous: Delete All Products
+export const incrementProductView = async (id: string) => {
+    if (!isFirebaseConfigured) return;
+    try {
+        const ref = doc(db, PRODUCTS_COL, id);
+        await updateDoc(ref, { views: increment(1) });
+    } catch (error) { handleFirestoreError(error); }
+};
+
 export const deleteAllProducts = async () => {
     if (!isFirebaseConfigured) return;
     try {
@@ -252,7 +259,7 @@ export const addStory = async (storyData: { imageUrl: string; type: 'image' | 'v
   try {
     const now = Date.now();
     const ONE_WEEK_MS = 7 * 24 * 60 * 60 * 1000;
-    await addDoc(collection(db, STORIES_COL), {
+    const safeData = sanitizePayload({
       imageUrl: storyData.imageUrl,
       type: storyData.type,
       caption: storyData.caption,
@@ -261,6 +268,7 @@ export const addStory = async (storyData: { imageUrl: string; type: 'image' | 'v
       productId: storyData.productId || null,
       views: []
     });
+    await addDoc(collection(db, STORIES_COL), safeData);
   } catch (error) { handleFirestoreError(error); }
 };
 
@@ -285,6 +293,8 @@ export const deleteStory = async (id: string) => {
 
 export const getShopSettings = async (): Promise<ShopSettings> => {
   const defaults: ShopSettings = {
+    shopName: "Lojista Vip",
+    minOrderValue: 20,
     aboutUs: "Somos uma loja dedicada a trazer os melhores produtos com os melhores preços.",
     shippingPolicy: "Enviamos para todo o Brasil. O prazo de entrega varia de acordo com a região.",
     warrantyPolicy: "Garantia de 30 dias contra defeitos de fabricação.",
@@ -300,7 +310,7 @@ export const getShopSettings = async (): Promise<ShopSettings> => {
   try {
     const docRef = doc(db, SETTINGS_COL, SETTINGS_DOC_ID);
     const snap = await getDoc(docRef);
-    if (snap.exists()) return snap.data() as ShopSettings;
+    if (snap.exists()) return { ...defaults, ...snap.data() } as ShopSettings;
     return defaults;
   } catch (error) {
     return handleFirestoreError(error, defaults);
@@ -310,7 +320,7 @@ export const getShopSettings = async (): Promise<ShopSettings> => {
 export const saveShopSettings = async (settings: ShopSettings) => {
   if (!isFirebaseConfigured) return;
   try {
-    await setDoc(doc(db, SETTINGS_COL, SETTINGS_DOC_ID), settings);
+    await setDoc(doc(db, SETTINGS_COL, SETTINGS_DOC_ID), sanitizePayload(settings));
   } catch (error) { handleFirestoreError(error); }
 };
 
@@ -331,7 +341,7 @@ export const saveHeroImage = async (url: string) => {
 };
 
 export const getLogo = async (): Promise<string> => {
-  const defaultLogo = "https://i.ibb.co/YnkzNYy/Cream-Black-Typography-Loop-Brand-Logo.jpg";
+  const defaultLogo = "";
   if (!isFirebaseConfigured) return defaultLogo;
   try {
     const docRef = doc(db, SETTINGS_COL, IMAGES_DOC_ID);
@@ -369,7 +379,7 @@ export const updateUser = async (user: User) => {
   if (!isFirebaseConfigured) return;
   try {
     const { id, ...data } = user;
-    await updateDoc(doc(db, USERS_COL, id), data);
+    await updateDoc(doc(db, USERS_COL, id), sanitizePayload(data));
   } catch (error) { handleFirestoreError(error); }
 };
 
@@ -380,8 +390,32 @@ export const deleteUser = async (userId: string) => {
   } catch (error) { handleFirestoreError(error); }
 };
 
+export const registerVendor = async (name: string, phone: string, password: string): Promise<{ success: boolean; message: string }> => {
+    if (!isFirebaseConfigured) return { success: false, message: 'Offline' };
+    try {
+        const q = query(collection(db, USERS_COL), where("phone", "==", phone));
+        const querySnapshot = await getDocs(q);
+        if (!querySnapshot.empty) return { success: false, message: 'Vendedor já cadastrado com este telefone.' };
+
+        const newUserRef = doc(collection(db, USERS_COL));
+        const newVendor: User = {
+            id: newUserRef.id,
+            name,
+            phone,
+            password, // In prod, hash this
+            isAdmin: false,
+            isVendor: true,
+            createdAt: Date.now()
+        };
+        await setDoc(newUserRef, sanitizePayload(newVendor));
+        return { success: true, message: 'Vendedor cadastrado!' };
+    } catch (error) {
+        return handleFirestoreError(error, { success: false, message: 'Erro.' });
+    }
+}
+
 // Register
-export const registerUser = async (userData: { name: string; phone: string; cep: string; city: string; password: string; }): Promise<{ success: boolean; message: string; user?: User }> => {
+export const registerUser = async (userData: { name: string; phone: string; cep: string; city: string; street: string; number: string; district: string; complement: string; password: string; }): Promise<{ success: boolean; message: string; user?: User }> => {
   if (!isFirebaseConfigured) {
     return { success: false, message: 'Banco de dados não configurado.' };
   }
@@ -398,12 +432,13 @@ export const registerUser = async (userData: { name: string; phone: string; cep:
     const newUser: User = {
       id: newUserRef.id,
       isAdmin: false,
+      isVendor: false,
       ...userData,
       savedCart: [],
       createdAt: Date.now()
     };
 
-    await setDoc(newUserRef, newUser);
+    await setDoc(newUserRef, sanitizePayload(newUser));
     localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(newUser));
     
     return { success: true, message: 'Cadastro realizado!', user: newUser };
@@ -454,14 +489,18 @@ export const logout = () => {
   localStorage.removeItem(CURRENT_USER_KEY);
 };
 
-export const fetchAddressByCep = async (cep: string): Promise<string | null> => {
+export const fetchAddressByCep = async (cep: string): Promise<{ city: string, street: string, district: string } | null> => {
   try {
     const cleanCep = cep.replace(/\D/g, '');
     if (cleanCep.length !== 8) return null;
     const response = await fetch(`https://viacep.com.br/ws/${cleanCep}/json/`);
     const data = await response.json();
     if (data.erro) return null;
-    return data.localidade; 
+    return {
+        city: data.localidade,
+        street: data.logradouro,
+        district: data.bairro
+    }; 
   } catch (error) {
     console.error("CEP fetch error", error);
     return null;
@@ -497,15 +536,42 @@ export const saveOrder = async (order: Order) => {
   if (!isFirebaseConfigured) return;
   try {
     const orderRef = doc(collection(db, ORDERS_COL)); // New ID
-    const orderWithId = { ...order, id: orderRef.id }; 
-    await setDoc(orderRef, orderWithId);
-  } catch (error) { handleFirestoreError(error); }
+    const orderWithId = { ...order, id: orderRef.id };
+    
+    // SANITIZE PAYLOAD: Removes undefined values to prevent crash
+    const safePayload = sanitizePayload(orderWithId);
+    
+    await setDoc(orderRef, safePayload);
+  } catch (error) { 
+    console.error("Error saving order:", error);
+    handleFirestoreError(error); 
+    throw error; // Re-throw so UI knows it failed
+  }
 };
 
 export const updateOrder = async (order: Order) => {
   if (!isFirebaseConfigured) return;
   try {
     const orderRef = doc(db, ORDERS_COL, order.id);
-    await setDoc(orderRef, order, { merge: true });
+    const safePayload = sanitizePayload(order);
+    await setDoc(orderRef, safePayload, { merge: true });
   } catch (error) { handleFirestoreError(error); }
+};
+
+export const deleteOrder = async (orderId: string): Promise<boolean> => {
+  if (!isFirebaseConfigured) return false;
+  console.log("Serviço: Iniciando exclusão do pedido", orderId);
+  try {
+    await deleteDoc(doc(db, ORDERS_COL, orderId));
+    console.log("Serviço: Exclusão bem-sucedida");
+    return true;
+  } catch (error: any) { 
+    console.error("Serviço: Erro ao excluir pedido", error);
+    // Specifically warn about permissions which is the most common cause of "nothing happens"
+    if (error.code === 'permission-denied') {
+        alert("ERRO DE PERMISSÃO: O banco de dados recusou a exclusão. Verifique as Regras de Segurança no Firebase Console.");
+    }
+    handleFirestoreError(error); 
+    return false;
+  }
 };

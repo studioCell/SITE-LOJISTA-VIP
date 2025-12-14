@@ -1,5 +1,9 @@
 import { initializeApp } from "firebase/app";
-import { getFirestore, enableIndexedDbPersistence } from "firebase/firestore";
+import { 
+  initializeFirestore, 
+  persistentLocalCache, 
+  persistentMultipleTabManager 
+} from "firebase/firestore";
 
 // --- Configurações Reais do Projeto Lojista VIP ---
 const firebaseConfig = {
@@ -16,16 +20,10 @@ const firebaseConfig = {
 export const isFirebaseConfigured = firebaseConfig.apiKey !== "SUA_API_KEY_AQUI";
 
 const app = initializeApp(firebaseConfig);
-export const db = getFirestore(app);
 
-// Enable offline persistence
-// This helps prevent "client is offline" errors by caching data locally
-if (isFirebaseConfigured) {
-  enableIndexedDbPersistence(db).catch((err) => {
-    if (err.code == 'failed-precondition') {
-      console.warn('Persistence failed: Multiple tabs open');
-    } else if (err.code == 'unimplemented') {
-      console.warn('Persistence not supported by browser');
-    }
-  });
-}
+// Initialize Firestore with the new cache settings to avoid warnings
+export const db = initializeFirestore(app, {
+  localCache: persistentLocalCache({
+    tabManager: persistentMultipleTabManager()
+  })
+});

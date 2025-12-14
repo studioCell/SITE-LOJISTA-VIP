@@ -111,7 +111,15 @@ export const UserOrdersModal: React.FC<UserOrdersModalProps> = ({ isOpen, onClos
                                <div className="flex justify-between items-center mt-3 pt-2 border-t border-gray-50">
                                   {order.trackingCode ? (
                                       <div className="bg-indigo-50 p-2 rounded text-xs text-indigo-800 font-medium">
-                                          Rastreio: {order.trackingCode}
+                                          <span className="mr-1">Rastreio:</span>
+                                          <a 
+                                            href={`https://rastreamento.correios.com.br/app/index.php?objeto=${order.trackingCode}`} 
+                                            target="_blank" 
+                                            rel="noopener noreferrer"
+                                            className="underline hover:text-indigo-600 font-bold"
+                                          >
+                                            {order.trackingCode}
+                                          </a>
                                       </div>
                                   ) : <div></div>}
 

@@ -1,5 +1,6 @@
+
 import React, { useState, useEffect } from 'react';
-import { Order, OrderStatus } from '../types';
+import { Order, OrderStatus, User } from '../types';
 import { Button } from './Button';
 import { subscribeToOrders, updateOrder, getShopSettings, getLogo, fetchAddressByCep } from '../services/storage';
 import { PrintPreviewModal } from './PrintPreviewModal';
@@ -8,20 +9,21 @@ interface SalesAreaProps {
   isOpen: boolean;
   onClose: () => void;
   onEditItems: (order: Order) => void;
+  currentUser: User | null;
 }
 
-const STATUS_LABELS: Record<OrderStatus, string> = {
+// Removed 'cancelado'
+const STATUS_LABELS: Record<string, string> = {
   orcamento: 'Orçamento',
   realizado: 'Pedido Finalizado',
   pagamento_pendente: 'Aguard. Pagamento',
   preparacao: 'Em Preparação',
   transporte: 'Em Trânsito',
   entregue: 'Entregue',
-  devolucao: 'Devolução',
-  cancelado: 'Cancelado'
+  devolucao: 'Devolução'
 };
 
-const STATUS_COLORS: Record<OrderStatus, string> = {
+const STATUS_COLORS: Record<string, string> = {
   orcamento: 'bg-gray-100 text-gray-800',
   realizado: 'bg-blue-100 text-blue-800',
   pagamento_pendente: 'bg-yellow-100 text-yellow-800',
@@ -29,10 +31,10 @@ const STATUS_COLORS: Record<OrderStatus, string> = {
   transporte: 'bg-indigo-100 text-indigo-800',
   entregue: 'bg-green-100 text-green-800',
   devolucao: 'bg-red-100 text-red-800',
-  cancelado: 'bg-gray-800 text-white'
+  cancelado: 'bg-gray-800 text-white' // Legacy support
 };
 
-export const SalesArea: React.FC<SalesAreaProps> = ({ isOpen, onClose, onEditItems }) => {
+export const SalesArea: React.FC<SalesAreaProps> = ({ isOpen, onClose, onEditItems, currentUser }) => {
   const [orders, setOrders] = useState<Order[]>([]);
   const [filter, setFilter] = useState<'active' | 'all'>('active');
   const [localDiscounts, setLocalDiscounts] = useState<Record<string, string>>({});
@@ -45,7 +47,8 @@ export const SalesArea: React.FC<SalesAreaProps> = ({ isOpen, onClose, onEditIte
       street: '',
       number: '',
       district: '',
-      city: ''
+      city: '',
+      complement: ''
   });
   const [loadingAddress, setLoadingAddress] = useState(false);
 
@@ -147,7 +150,8 @@ export const SalesArea: React.FC<SalesAreaProps> = ({ isOpen, onClose, onEditIte
           street: order.userStreet || '',
           number: order.userNumber || '',
           district: order.userDistrict || '',
-          city: order.userCity || ''
+          city: order.userCity || '',
+          complement: order.userComplement || ''
       });
   };
 
@@ -162,7 +166,8 @@ export const SalesArea: React.FC<SalesAreaProps> = ({ isOpen, onClose, onEditIte
           userStreet: addressForm.street,
           userNumber: addressForm.number,
           userDistrict: addressForm.district,
-          userCity: addressForm.city
+          userCity: addressForm.city,
+          userComplement: addressForm.complement
       });
       setEditingAddressId(null);
   };
@@ -171,9 +176,16 @@ export const SalesArea: React.FC<SalesAreaProps> = ({ isOpen, onClose, onEditIte
       const raw = addressForm.cep.replace(/\D/g, '');
       if (raw.length === 8) {
           setLoadingAddress(true);
-          const city = await fetchAddressByCep(raw);
+          const data = await fetchAddressByCep(raw);
           setLoadingAddress(false);
-          if (city) setAddressForm(prev => ({ ...prev, city }));
+          if (data) {
+              setAddressForm(prev => ({ 
+                  ...prev, 
+                  city: data.city,
+                  street: data.street,
+                  district: data.district 
+              }));
+          }
       }
   };
 
@@ -198,6 +210,7 @@ export const SalesArea: React.FC<SalesAreaProps> = ({ isOpen, onClose, onEditIte
     if (order.userStreet) {
         addressBlock += `${order.userStreet}, ${order.userNumber || 'S/N'}\n`;
         if (order.userDistrict) addressBlock += `Bairro: ${order.userDistrict}\n`;
+        if (order.userComplement) addressBlock += `Comp: ${order.userComplement}\n`;
         addressBlock += `${order.userCity || ''} - CEP: ${order.userCep || ''}`;
     } else {
         addressBlock += `Retirada / A Combinar (${order.userCity || 'Cidade não inf.'})`;
@@ -225,39 +238,6 @@ Pedido conferido e finalizado!`;
     const encoded = encodeURIComponent(message);
     const phoneNumber = order.userPhone.replace(/\D/g, '');
     window.open(`https://api.whatsapp.com/send?phone=55${phoneNumber}&text=${encoded}`, '_blank');
-  };
-
-  const handleSendUpdate = (order: Order) => {
-      // Regular updates (not the finalize one)
-      const name = order.userName.split(' ')[0];
-      let message = '';
-
-      switch (order.status) {
-          case 'orcamento':
-               message = `Olá ${name}! \nRecebemos seu orçamento. Aguarde, em breve confirmaremos a disponibilidade e valores.`;
-               break;
-          case 'realizado': // Finalizado
-               message = `*Pedido Confirmado!* \n\nOlá ${name}, seu pedido foi finalizado com sucesso.`;
-               break;
-          case 'pagamento_pendente':
-              message = `*Aguardando Pagamento* \n\nOlá ${name}. Segue os dados para pagamento:\n\n*Chave PIX:* ${settings?.pixKey}\n*Nome:* ${settings?.pixName}\n\n*Valor:* R$ ${order.total.toFixed(2)}\n\nEnvie o comprovante!`;
-              break;
-          case 'preparacao':
-              message = `Olá ${name}, seu pedido #${order.id.slice(-6)} está em separação.`;
-              break;
-          case 'transporte':
-              message = `Saiu para Entrega!\n\nOlá ${name}, seu pedido está a caminho.\n${order.trackingCode ? `Rastreio: ${order.trackingCode}` : ''}`;
-              break;
-          case 'entregue':
-              message = `Pedido Entregue!\n\nOlá ${name}, obrigado pela compra!`;
-              break;
-          default:
-              message = `Atualização do Pedido #${order.id.slice(-6)}.`;
-      }
-
-      const encoded = encodeURIComponent(message);
-      const phoneNumber = order.userPhone.replace(/\D/g, '');
-      window.open(`https://api.whatsapp.com/send?phone=55${phoneNumber}&text=${encoded}`, '_blank');
   };
 
   const filteredOrders = orders.filter(o => {
@@ -320,6 +300,12 @@ Pedido conferido e finalizado!`;
               const isEditingAddr = editingAddressId === order.id;
               const hasFullAddress = order.userStreet && order.userNumber && order.userDistrict;
               
+              // SECURITY CHECK: Lock Editing for Vendors if status is Advanced
+              // 'preparacao' = Payment Confirmed (usually). 
+              // Rule: After confirmation, only Admin can edit.
+              const isLockedForEditing = !currentUser?.isAdmin && 
+                  ['preparacao', 'transporte', 'entregue', 'devolucao'].includes(order.status);
+
               return (
                 <div key={order.id} className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
                   {/* Card Header */}
@@ -336,7 +322,8 @@ Pedido conferido e finalizado!`;
                         <select 
                             value={order.status}
                             onChange={(e) => handleStatusChange(order, e.target.value as OrderStatus)}
-                            className={`text-[10px] font-bold uppercase py-1 px-2 rounded border-none outline-none cursor-pointer ${STATUS_COLORS[order.status]}`}
+                            disabled={isLockedForEditing}
+                            className={`text-[10px] font-bold uppercase py-1 px-2 rounded border-none outline-none cursor-pointer ${STATUS_COLORS[order.status]} ${isLockedForEditing ? 'opacity-70 cursor-not-allowed' : ''}`}
                         >
                             {Object.entries(STATUS_LABELS).map(([key, label]) => (
                                 <option key={key} value={key}>{label}</option>
@@ -361,6 +348,7 @@ Pedido conferido e finalizado!`;
                                   {order.userStreet ? (
                                       <div className="ml-4">
                                           <p className="font-medium text-gray-800">{order.userStreet}, {order.userNumber}</p>
+                                          {order.userComplement && <p className="text-[10px] text-gray-500">Comp: {order.userComplement}</p>}
                                           <p>{order.userDistrict} - {order.userCity}</p>
                                           <p className="text-gray-400">CEP: {order.userCep}</p>
                                       </div>
@@ -372,7 +360,8 @@ Pedido conferido e finalizado!`;
                               </div>
                               <button 
                                 onClick={() => startEditingAddress(order)}
-                                className="text-orange-600 bg-white border border-orange-200 hover:bg-orange-50 text-xs font-bold px-3 py-1 rounded transition-colors"
+                                disabled={isLockedForEditing}
+                                className={`text-orange-600 bg-white border border-orange-200 hover:bg-orange-50 text-xs font-bold px-3 py-1 rounded transition-colors ${isLockedForEditing ? 'opacity-50 cursor-not-allowed' : ''}`}
                               >
                                   {order.userStreet ? 'Alterar' : 'Definir Endereço'}
                               </button>
@@ -439,6 +428,16 @@ Pedido conferido e finalizado!`;
                                   </div>
                               </div>
 
+                              <div>
+                                  <label className="text-[10px] text-gray-500 font-bold">Complemento (Opcional)</label>
+                                  <input 
+                                    placeholder="Apto, Bloco..." 
+                                    className="w-full border border-gray-300 p-1.5 text-xs rounded focus:border-orange-500 outline-none"
+                                    value={addressForm.complement}
+                                    onChange={e => setAddressForm({...addressForm, complement: e.target.value})}
+                                  />
+                              </div>
+
                               <div className="flex justify-end gap-2 pt-2 border-t border-gray-100">
                                   <button onClick={cancelEditingAddress} className="text-xs text-gray-500 hover:text-gray-800 px-2">Cancelar</button>
                                   <button onClick={() => saveAddress(order)} className="text-xs bg-orange-600 hover:bg-orange-700 text-white px-4 py-1.5 rounded font-medium shadow-sm">
@@ -468,7 +467,7 @@ Pedido conferido e finalizado!`;
                          Imprimir
                        </button>
 
-                       {(order.status === 'orcamento') && (
+                       {(order.status === 'orcamento' && !isLockedForEditing) && (
                            <button 
                              onClick={() => onEditItems(order)}
                              className="text-xs font-bold text-blue-600 hover:text-blue-800 hover:bg-blue-50 px-3 py-1.5 rounded-full flex items-center gap-1 transition-colors"
@@ -487,18 +486,20 @@ Pedido conferido e finalizado!`;
                       
                       {/* Fees Toggles */}
                       <div className="flex gap-4">
-                          <label className="flex items-center gap-1 cursor-pointer">
+                          <label className={`flex items-center gap-1 ${isLockedForEditing ? 'opacity-50' : 'cursor-pointer'}`}>
                               <input 
                                 type="checkbox" 
+                                disabled={isLockedForEditing}
                                 checked={!!order.wantsInvoice}
                                 onChange={() => handleToggleFee(order, 'invoice')}
                                 className="rounded text-orange-600 focus:ring-orange-500"
                               />
                               <span className="text-xs text-gray-600">Nota Fiscal (+6%)</span>
                           </label>
-                          <label className="flex items-center gap-1 cursor-pointer">
+                          <label className={`flex items-center gap-1 ${isLockedForEditing ? 'opacity-50' : 'cursor-pointer'}`}>
                               <input 
                                 type="checkbox" 
+                                disabled={isLockedForEditing}
                                 checked={!!order.wantsInsurance}
                                 onChange={() => handleToggleFee(order, 'insurance')}
                                 className="rounded text-orange-600 focus:ring-orange-500"
@@ -515,7 +516,8 @@ Pedido conferido e finalizado!`;
                           <input 
                             type="number"
                             step="0.01"
-                            className="w-full bg-white border border-gray-300 rounded px-2 py-1 text-right text-sm outline-none focus:border-orange-500 text-red-500 font-medium"
+                            disabled={isLockedForEditing}
+                            className={`w-full bg-white border border-gray-300 rounded px-2 py-1 text-right text-sm outline-none focus:border-orange-500 text-red-500 font-medium ${isLockedForEditing ? 'bg-gray-100 text-gray-400' : ''}`}
                             placeholder="0,00"
                             value={localDiscounts[order.id] !== undefined ? localDiscounts[order.id] : (order.discount || '')}
                             onChange={(e) => handleDiscountChange(order.id, e.target.value)}
@@ -530,8 +532,9 @@ Pedido conferido e finalizado!`;
                             <span className="text-sm text-gray-500">Forma de Envio</span>
                             <select 
                                 value={order.shippingMethod || ''}
+                                disabled={isLockedForEditing}
                                 onChange={(e) => handleShippingMethodChange(order, e.target.value)}
-                                className="bg-white border border-gray-300 rounded px-2 py-1 text-xs outline-none focus:border-indigo-500 w-32"
+                                className={`bg-white border border-gray-300 rounded px-2 py-1 text-xs outline-none focus:border-indigo-500 w-32 ${isLockedForEditing ? 'bg-gray-100 text-gray-400' : ''}`}
                             >
                                 <option value="">Selecione...</option>
                                 <option value="Motoboy">Motoboy</option>
@@ -548,7 +551,8 @@ Pedido conferido e finalizado!`;
                               <input 
                                 type="number"
                                 step="0.01"
-                                className="w-full bg-white border border-gray-300 rounded px-2 py-1 text-right text-sm outline-none focus:border-indigo-500 text-indigo-600 font-medium"
+                                disabled={isLockedForEditing}
+                                className={`w-full bg-white border border-gray-300 rounded px-2 py-1 text-right text-sm outline-none focus:border-indigo-500 text-indigo-600 font-medium ${isLockedForEditing ? 'bg-gray-100 text-gray-400' : ''}`}
                                 placeholder="0,00"
                                 value={localShippingCosts[order.id] !== undefined ? localShippingCosts[order.id] : (order.shippingCost || '')}
                                 onChange={(e) => handleShippingCostChange(order.id, e.target.value)}
@@ -572,7 +576,7 @@ Pedido conferido e finalizado!`;
                               <Button 
                                 onClick={() => handleFinalizeOrder(order)}
                                 className={`w-full !py-3 shadow-lg ${!hasFullAddress ? '!bg-gray-400 cursor-not-allowed hover:!bg-gray-400' : '!bg-green-600 hover:!bg-green-700'}`}
-                                disabled={!hasFullAddress}
+                                disabled={!hasFullAddress || isLockedForEditing}
                               >
                                 {hasFullAddress ? '✅ Finalizar e Enviar Pedido' : 'Preencha o Endereço'}
                               </Button>

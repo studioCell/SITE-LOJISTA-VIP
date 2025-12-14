@@ -6,7 +6,7 @@ interface AuthModalProps {
   isOpen: boolean;
   onClose: () => void;
   onLogin: (identifier: string, pass: string, remember: boolean) => Promise<{ success: boolean; message: string }> | { success: boolean; message: string };
-  onRegister: (data: { name: string; phone: string; cep: string; city: string; password: string }) => Promise<{ success: boolean; message: string }> | { success: boolean; message: string };
+  onRegister: (data: { name: string; phone: string; cep: string; city: string; street: string; number: string; district: string; complement: string; password: string }) => Promise<{ success: boolean; message: string }> | { success: boolean; message: string };
   logo?: string;
 }
 
@@ -26,14 +26,16 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLogin, 
   const [regPhone, setRegPhone] = useState('');
   const [regCep, setRegCep] = useState('');
   const [regCity, setRegCity] = useState('');
+  const [regStreet, setRegStreet] = useState('');
+  const [regNumber, setRegNumber] = useState('');
+  const [regDistrict, setRegDistrict] = useState('');
+  const [regComplement, setRegComplement] = useState('');
   const [regPass, setRegPass] = useState('');
 
   if (!isOpen) return null;
 
   const handleCepChange = (val: string) => {
-      // Remove non-numeric
       const nums = val.replace(/\D/g, '');
-      // Mask: 00000-000
       let masked = nums;
       if (nums.length > 5) {
           masked = nums.slice(0, 5) + '-' + nums.slice(5, 8);
@@ -45,9 +47,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLogin, 
     const rawCep = regCep.replace(/\D/g, '');
     if (rawCep.length === 8) {
       setLoading(true);
-      const city = await fetchAddressByCep(rawCep);
-      if (city) {
-        setRegCity(city);
+      const data = await fetchAddressByCep(rawCep);
+      if (data) {
+        setRegCity(data.city);
+        setRegStreet(data.street);
+        setRegDistrict(data.district);
       }
       setLoading(false);
     }
@@ -77,9 +81,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLogin, 
         setError('A senha deve ter exatamente 6 dígitos.');
         return;
       }
+      if (!regStreet || !regNumber) {
+          setError('Preencha o endereço completo.');
+          return;
+      }
       
       setLoading(true);
-      // Simulate network delay for UX is handled by async call now
       
       try {
         const result = await onRegister({
@@ -87,6 +94,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLogin, 
           phone: regPhone,
           cep: regCep,
           city: regCity,
+          street: regStreet,
+          number: regNumber,
+          district: regDistrict,
+          complement: regComplement,
           password: regPass
         });
         
@@ -107,16 +118,17 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLogin, 
     setMode(m);
     setError('');
     setShowPassword(false);
-    // Clear forms
     setIdentifier(''); setPassword('');
-    setRegName(''); setRegPhone(''); setRegCep(''); setRegCity(''); setRegPass('');
+    setRegName(''); setRegPhone(''); setRegCep(''); setRegCity(''); 
+    setRegStreet(''); setRegNumber(''); setRegDistrict(''); setRegComplement('');
+    setRegPass('');
   };
 
   return (
     <div className="fixed inset-0 z-[80] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
       
-      <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-sm p-8 overflow-hidden animate-scale-up">
+      <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-sm p-8 overflow-hidden animate-scale-up max-h-[90vh] overflow-y-auto">
         {/* Close Button */}
         <button 
           onClick={onClose} 
@@ -256,6 +268,52 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLogin, 
                   />
                 </div>
               </div>
+              
+              <div className="flex gap-2">
+                  <div className="flex-[2]">
+                      <label className="block text-xs font-medium text-gray-700 mb-1">Rua</label>
+                      <input 
+                        value={regStreet}
+                        onChange={e => setRegStreet(e.target.value)}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 outline-none text-sm"
+                        placeholder="Rua..."
+                        required
+                      />
+                  </div>
+                  <div className="flex-1">
+                      <label className="block text-xs font-medium text-gray-700 mb-1">Nº</label>
+                      <input 
+                        value={regNumber}
+                        onChange={e => setRegNumber(e.target.value)}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 outline-none text-sm"
+                        placeholder="123"
+                        required
+                      />
+                  </div>
+              </div>
+
+              <div className="flex gap-2">
+                  <div className="flex-1">
+                      <label className="block text-xs font-medium text-gray-700 mb-1">Bairro</label>
+                      <input 
+                        value={regDistrict}
+                        onChange={e => setRegDistrict(e.target.value)}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 outline-none text-sm"
+                        placeholder="Bairro"
+                        required
+                      />
+                  </div>
+                  <div className="flex-1">
+                      <label className="block text-xs font-medium text-gray-700 mb-1">Comp. (Opcional)</label>
+                      <input 
+                        value={regComplement}
+                        onChange={e => setRegComplement(e.target.value)}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 outline-none text-sm"
+                        placeholder="Apto, Bloco..."
+                      />
+                  </div>
+              </div>
+
               <div className="relative">
                 <label className="block text-xs font-medium text-gray-700 mb-1">Crie uma senha de 6 dígitos</label>
                 <input 

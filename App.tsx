@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { Product, CartItem, Story, User, ShopSettings, Order, Category } from './types';
 import { 
@@ -123,8 +124,8 @@ function App() {
     const user = getCurrentUser();
     if (user) {
       setCurrentUser(user);
-      if (user.isAdmin) {
-        // Admin
+      if (user.isAdmin || user.isVendor) {
+        // Logged in as staff
       } else if (user.savedCart) {
         setCart(user.savedCart); 
       }
@@ -157,7 +158,7 @@ function App() {
 
   // Sync Cart to User Storage whenever it changes
   useEffect(() => {
-    if (currentUser && !currentUser.isAdmin) {
+    if (currentUser && !currentUser.isAdmin && !currentUser.isVendor) {
       saveUserCart(currentUser.id, cart);
     }
   }, [cart, currentUser]);
@@ -196,8 +197,8 @@ function App() {
     }));
   };
 
-  const handleCheckout = (
-      extras: { wantsInvoice: boolean; wantsInsurance: boolean },
+  const handleCheckout = async (
+      extras: { wantsInvoice: boolean; wantsInsurance: boolean; shippingMethod: string },
       customerOverride?: { user: User, address: any }
   ) => {
     // AUTH CHECK: Open modal if not logged in
@@ -216,29 +217,49 @@ function App() {
     const targetUser = customerOverride ? customerOverride.user : currentUser;
     const targetAddress = customerOverride ? customerOverride.address : null;
 
-    if ((currentUser && !currentUser.isAdmin) || (currentUser?.isAdmin && targetUser)) {
+    // --- CRITICAL FIX: ALWAYS SAVE ORDER TO DB FIRST ---
+    if (targetUser && cart.length > 0) {
+      // FORCE DEFAULTS for ALL fields to avoid 'undefined' error in Firestore
+      // AUTO-FILL Address from User Profile if not provided in override
       const newOrder: Order = {
-        id: Date.now().toString(), // Temp ID
-        userId: targetUser.id,
-        userName: targetUser.name,
+        id: Date.now().toString(), 
+        userId: targetUser.id || 'unknown',
+        userName: targetUser.name || 'Cliente',
         userPhone: targetUser.phone || '',
         
-        userCep: targetAddress?.cep || targetUser.cep,
-        userCity: targetAddress?.city || targetUser.city,
-        userStreet: targetAddress?.street,
-        userNumber: targetAddress?.number,
-        userDistrict: targetAddress?.district,
+        // Priority: Override Address > User Profile Address > Empty String
+        userCep: targetAddress?.cep || targetUser.cep || '',
+        userCity: targetAddress?.city || targetUser.city || '',
+        userStreet: targetAddress?.street || targetUser.street || '', 
+        userNumber: targetAddress?.number || targetUser.number || '',
+        userDistrict: targetAddress?.district || targetUser.district || '',
+        userComplement: targetUser.complement || '', // User Complement
 
         items: [...cart],
-        total: total,
-        wantsInvoice: extras.wantsInvoice,
-        wantsInsurance: extras.wantsInsurance,
-        status: 'orcamento',
+        total: total || 0,
+        discount: 0,
+        shippingCost: 0,
+        wantsInvoice: !!extras.wantsInvoice,
+        wantsInsurance: !!extras.wantsInsurance,
+        shippingMethod: extras.shippingMethod || '',
+        
+        status: 'orcamento', // Initial status is always 'orcamento'
         createdAt: Date.now(),
+        trackingCode: '', // Empty string, not undefined
+        // Assign sellerId only if the current logged-in user is a Vendor acting on behalf
+        sellerId: (currentUser.isVendor || currentUser.isAdmin) ? currentUser.id : null as any,
         history: [{ status: 'orcamento', timestamp: Date.now() }]
       };
-      saveOrder(newOrder);
-      setCart([]);
+
+      try {
+        // Await the save to ensure DB consistency before UI changes
+        await saveOrder(newOrder);
+        setCart([]); // Clear cart locally after successful save
+      } catch (error) {
+        console.error("Erro ao salvar pedido:", error);
+        alert("Houve um erro ao registrar o pedido no sistema. Tente novamente.");
+        return; // Don't open WhatsApp if save failed
+      }
     }
 
     // Build WA Message
@@ -254,20 +275,27 @@ function App() {
         customerInfo += `\n*Cliente:* ${targetUser.name}`;
         customerInfo += `\n*Tel:* ${targetUser.phone || 'Não informado'}`;
         
-        if (targetAddress && targetAddress.street) {
-             customerInfo += `\n*Endereço:* ${targetAddress.street}, ${targetAddress.number || 'S/N'}`;
-             if(targetAddress.district) customerInfo += ` - ${targetAddress.district}`;
-             if(targetAddress.city) customerInfo += `\n${targetAddress.city}`;
-             if(targetAddress.cep) customerInfo += ` (CEP: ${targetAddress.cep})`;
-        } else if (targetUser.city) {
-            customerInfo += `\n*Endereço:* ${targetUser.city}`;
-            if (targetUser.cep) customerInfo += ` - CEP: ${targetUser.cep}`;
+        // Use the same logic as the order object for display
+        const displayStreet = targetAddress?.street || targetUser.street;
+        const displayNumber = targetAddress?.number || targetUser.number;
+        const displayDistrict = targetAddress?.district || targetUser.district;
+        const displayCity = targetAddress?.city || targetUser.city;
+        const displayCep = targetAddress?.cep || targetUser.cep;
+
+        if (displayStreet) {
+             customerInfo += `\n*Endereço:* ${displayStreet}, ${displayNumber || 'S/N'}`;
+             if(displayDistrict) customerInfo += ` - ${displayDistrict}`;
+             if(displayCity) customerInfo += `\n${displayCity}`;
+             if(displayCep) customerInfo += ` (CEP: ${displayCep})`;
+        } else if (displayCity) {
+            customerInfo += `\n*Endereço:* ${displayCity}`;
         }
     }
 
     let extraInfo = "";
     if (extras.wantsInvoice) extraInfo += "\n*Com Nota Fiscal*";
     if (extras.wantsInsurance) extraInfo += "\n*Com Seguro*";
+    if (extras.shippingMethod) extraInfo += `\n*Envio:* ${extras.shippingMethod}`;
 
     const text = 
 `*Novo Pedido - Lojista Vip*
@@ -298,8 +326,8 @@ ${customerInfo}
       if (result.user.savedCart) {
         setCart(result.user.savedCart);
       }
-      if (result.user.isAdmin) {
-        setView('admin');
+      if (result.user.isAdmin || result.user.isVendor) {
+        setView('admin'); // Both admins and vendors go to the panel view
       }
       setIsAuthOpen(false);
     }
@@ -374,9 +402,12 @@ ${customerInfo}
   };
 
   const handleDeleteStory = async (id: string) => {
-    if(confirm("Apagar este story?")) {
+    // Confirmation handled in StoryViewer now
+    setViewingStoryId(null);
+    try {
       await deleteStory(id);
-      setViewingStoryId(null);
+    } catch (e) {
+      console.error("Falha ao deletar story", e);
     }
   };
 
@@ -441,10 +472,10 @@ ${customerInfo}
     setView('home');
   };
 
-  const isAdmin = currentUser?.isAdmin || false;
+  const isStaff = currentUser?.isAdmin || currentUser?.isVendor;
 
   // --- Filtering Logic ---
-  const availableProducts = isAdmin ? products : products.filter(p => p.available);
+  const availableProducts = isStaff ? products : products.filter(p => p.available);
   
   let filteredProducts = availableProducts;
 
@@ -511,11 +542,13 @@ ${customerInfo}
       />
 
       <main className="flex-grow max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
-        {view === 'admin' && isAdmin ? (
+        {view === 'admin' && isStaff ? (
           <div className="animate-fade-in-up">
             <div className="mb-8 flex items-center justify-between">
               <div>
-                <h1 className="text-3xl font-bold text-gray-900">Painel Administrativo</h1>
+                <h1 className="text-3xl font-bold text-gray-900">
+                    {currentUser?.isAdmin ? 'Painel Administrativo' : 'Painel do Vendedor'}
+                </h1>
                 <p className="text-gray-500 mt-2">Bem-vindo de volta, {currentUser?.name}.</p>
               </div>
               <button 
@@ -538,11 +571,11 @@ ${customerInfo}
         ) : (
           <div className="animate-fade-in-up">
              {/* Stories Section */}
-             {(stories.length > 0 || isAdmin) && (
+             {(stories.length > 0 || isStaff) && (
                <div className="mb-6">
                  <StoryList 
                     stories={stories}
-                    isAdmin={isAdmin}
+                    isAdmin={!!currentUser?.isAdmin} // Vendors cannot edit stories
                     onAddClick={() => setIsStoryCreatorOpen(true)}
                     onStoryClick={handleStoryView}
                  />
@@ -559,7 +592,7 @@ ${customerInfo}
                       className="w-full h-auto max-h-[400px] object-cover" 
                       onError={() => setHeroImageError(true)}
                     />
-                  ) : isAdmin ? (
+                  ) : currentUser?.isAdmin ? (
                     <div className="w-full h-48 flex flex-col items-center justify-center text-gray-400 border-2 border-dashed border-gray-300">
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
@@ -570,7 +603,7 @@ ${customerInfo}
                     </div>
                   ) : null}
 
-                  {isAdmin && (
+                  {currentUser?.isAdmin && (
                     <button 
                       onClick={handleEditHero}
                       className="absolute top-4 right-4 bg-white/90 backdrop-blur-sm text-gray-800 px-4 py-2 rounded-full shadow-md hover:bg-white transition-all text-sm font-medium flex items-center gap-2"
@@ -615,7 +648,7 @@ ${customerInfo}
                       onAddToCart={(p) => addToCart(p, 1)}
                       onClick={(p) => setViewingProduct(p)}
                       currentUser={currentUser}
-                      onEdit={handleQuickEditProduct}
+                      onEdit={currentUser?.isAdmin ? handleQuickEditProduct : undefined}
                     />
                   ))}
                 </div>
@@ -683,11 +716,11 @@ ${customerInfo}
         onRemove={removeFromCart}
         onUpdateQty={updateCartQty}
         onCheckout={handleCheckout}
-        onOpenMyOrders={currentUser && !currentUser.isAdmin ? () => {
+        onOpenMyOrders={currentUser && !currentUser.isAdmin && !currentUser.isVendor ? () => {
             setIsCartOpen(false);
             setIsUserOrdersOpen(true);
         } : undefined}
-        isAdmin={!!currentUser?.isAdmin}
+        isAdmin={!!currentUser?.isAdmin || !!currentUser?.isVendor}
       />
 
       <UserOrdersModal 
@@ -700,6 +733,7 @@ ${customerInfo}
         isOpen={isSalesAreaOpen}
         onClose={() => setIsSalesAreaOpen(false)}
         onEditItems={handleEditOrder}
+        currentUser={currentUser}
       />
 
       <MenuDrawer 
@@ -743,8 +777,8 @@ ${customerInfo}
           onClose={() => setViewingStoryId(null)}
           onDelete={handleDeleteStory}
           onGoToProduct={handleStoryProductLink}
-          isAdmin={isAdmin}
-          users={isAdmin ? [] : undefined} 
+          isAdmin={!!currentUser?.isAdmin} // Vendors cannot manage stories
+          users={currentUser?.isAdmin ? [] : undefined} 
         />
       )}
 

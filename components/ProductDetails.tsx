@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Product } from '../types';
 import { Button } from './Button';
+import { incrementProductView } from '../services/storage';
 
 interface ProductDetailsProps {
   product: Product | null;
@@ -20,6 +21,12 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({
   const [quantity, setQuantity] = useState(1);
   const [note, setNote] = useState('');
   const [isZoomOpen, setIsZoomOpen] = useState(false);
+
+  useEffect(() => {
+      if (product) {
+          incrementProductView(product.id);
+      }
+  }, [product]);
 
   if (!product) return null;
 
