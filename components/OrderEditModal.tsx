@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Order, CartItem, Product } from '../types';
 import { Button } from './Button';
@@ -164,62 +163,65 @@ export const OrderEditModal: React.FC<OrderEditModalProps> = ({ isOpen, onClose,
         {!isAddingMode ? (
           <div className="space-y-6">
             
-            {/* 1. Address Section */}
-            <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-              <h3 className="text-sm font-bold text-gray-700 uppercase mb-3 flex items-center gap-2">
-                📍 Endereço de Entrega
-              </h3>
+            {/* 1. Address Section - DARK THEME */}
+            <div className="bg-zinc-900 p-5 rounded-xl border border-zinc-800 shadow-lg">
+              <div className="flex justify-between items-center mb-4 border-b border-zinc-800 pb-2">
+                  <h3 className="text-sm font-bold text-white uppercase flex items-center gap-2">
+                    📍 Endereço de Entrega
+                  </h3>
+                  {loadingCep && <span className="text-[10px] text-orange-400 animate-pulse">Buscando...</span>}
+              </div>
+              
               <div className="grid grid-cols-12 gap-3">
                 <div className="col-span-4 sm:col-span-3">
-                  <label className="text-xs text-gray-500 font-bold">CEP</label>
+                  <label className="text-[10px] text-gray-400 font-bold mb-1 block">CEP</label>
                   <input 
                     value={address.cep} 
                     onChange={e => setAddress({...address, cep: e.target.value})}
                     onBlur={handleCepBlur}
                     placeholder="00000-000"
-                    className="w-full border p-2 rounded text-sm"
+                    className="w-full bg-zinc-800 border border-zinc-600 p-2 rounded text-sm text-white placeholder-gray-500 outline-none focus:border-orange-500 transition-colors"
                   />
-                  {loadingCep && <span className="text-[10px] text-orange-500">Buscando...</span>}
                 </div>
                 <div className="col-span-8 sm:col-span-9">
-                  <label className="text-xs text-gray-500 font-bold">Cidade</label>
+                  <label className="text-[10px] text-gray-400 font-bold mb-1 block">Cidade</label>
                   <input 
                     value={address.city} 
                     onChange={e => setAddress({...address, city: e.target.value})}
-                    className="w-full border p-2 rounded text-sm bg-gray-100"
+                    className="w-full bg-zinc-950 border border-zinc-800 p-2 rounded text-sm text-gray-500 font-medium cursor-not-allowed"
                     readOnly
                   />
                 </div>
                 <div className="col-span-8">
-                  <label className="text-xs text-gray-500 font-bold">Rua</label>
+                  <label className="text-[10px] text-gray-400 font-bold mb-1 block">Rua</label>
                   <input 
                     value={address.street} 
                     onChange={e => setAddress({...address, street: e.target.value})}
-                    className="w-full border p-2 rounded text-sm"
+                    className="w-full bg-zinc-800 border border-zinc-600 p-2 rounded text-sm text-white placeholder-gray-500 outline-none focus:border-orange-500 transition-colors"
                   />
                 </div>
                 <div className="col-span-4">
-                  <label className="text-xs text-gray-500 font-bold">Número</label>
+                  <label className="text-[10px] text-gray-400 font-bold mb-1 block">Número</label>
                   <input 
                     value={address.number} 
                     onChange={e => setAddress({...address, number: e.target.value})}
-                    className="w-full border p-2 rounded text-sm"
+                    className="w-full bg-zinc-800 border border-zinc-600 p-2 rounded text-sm text-white placeholder-gray-500 outline-none focus:border-orange-500 transition-colors"
                   />
                 </div>
                 <div className="col-span-6">
-                  <label className="text-xs text-gray-500 font-bold">Bairro</label>
+                  <label className="text-[10px] text-gray-400 font-bold mb-1 block">Bairro</label>
                   <input 
                     value={address.district} 
                     onChange={e => setAddress({...address, district: e.target.value})}
-                    className="w-full border p-2 rounded text-sm"
+                    className="w-full bg-zinc-800 border border-zinc-600 p-2 rounded text-sm text-white placeholder-gray-500 outline-none focus:border-orange-500 transition-colors"
                   />
                 </div>
                 <div className="col-span-6">
-                  <label className="text-xs text-gray-500 font-bold">Complemento</label>
+                  <label className="text-[10px] text-gray-400 font-bold mb-1 block">Complemento</label>
                   <input 
                     value={address.complement} 
                     onChange={e => setAddress({...address, complement: e.target.value})}
-                    className="w-full border p-2 rounded text-sm"
+                    className="w-full bg-zinc-800 border border-zinc-600 p-2 rounded text-sm text-white placeholder-gray-500 outline-none focus:border-orange-500 transition-colors"
                   />
                 </div>
               </div>

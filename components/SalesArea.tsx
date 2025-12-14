@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Order, OrderStatus, User } from '../types';
 import { Button } from './Button';
@@ -301,8 +300,6 @@ Pedido conferido e finalizado!`;
               const hasFullAddress = order.userStreet && order.userNumber && order.userDistrict;
               
               // SECURITY CHECK: Lock Editing for Vendors if status is Advanced
-              // 'preparacao' = Payment Confirmed (usually). 
-              // Rule: After confirmation, only Admin can edit.
               const isLockedForEditing = !currentUser?.isAdmin && 
                   ['preparacao', 'transporte', 'entregue', 'devolucao'].includes(order.status);
 
@@ -367,30 +364,30 @@ Pedido conferido e finalizado!`;
                               </button>
                           </div>
                       ) : (
-                          <div className="space-y-3 bg-white p-3 rounded-lg border-2 border-orange-200 shadow-sm animate-fade-in">
-                              <div className="flex justify-between items-center">
-                                  <p className="text-xs font-bold text-orange-600 uppercase flex items-center gap-1">
+                          <div className="space-y-3 bg-zinc-900 p-4 rounded-xl border border-zinc-700 shadow-xl animate-fade-in relative overflow-hidden">
+                              <div className="flex justify-between items-center mb-1">
+                                  <p className="text-xs font-bold text-white uppercase flex items-center gap-1">
                                       📍 Editando Endereço
                                   </p>
-                                  {loadingAddress && <span className="text-xs text-gray-400 animate-pulse">Buscando CEP...</span>}
+                                  {loadingAddress && <span className="text-[10px] text-orange-400 animate-pulse">Buscando CEP...</span>}
                               </div>
                               
                               <div className="grid grid-cols-3 gap-2">
                                   <div className="col-span-1">
-                                      <label className="text-[10px] text-gray-500 font-bold">CEP</label>
+                                      <label className="text-[10px] text-gray-400 font-bold mb-1 block">CEP</label>
                                       <input 
                                         placeholder="00000-000" 
-                                        className="w-full border border-gray-300 p-1.5 text-xs rounded focus:border-orange-500 outline-none"
+                                        className="w-full bg-zinc-800 border border-zinc-600 p-2 text-xs rounded text-white placeholder-gray-500 focus:border-orange-500 outline-none transition-colors"
                                         value={addressForm.cep}
                                         onChange={e => setAddressForm({...addressForm, cep: e.target.value})}
                                         onBlur={handleCepBlur}
                                       />
                                   </div>
                                   <div className="col-span-2">
-                                      <label className="text-[10px] text-gray-500 font-bold">Cidade</label>
+                                      <label className="text-[10px] text-gray-400 font-bold mb-1 block">Cidade</label>
                                       <input 
                                         placeholder="Cidade" 
-                                        className="w-full border border-gray-200 p-1.5 text-xs rounded bg-gray-50 text-gray-500"
+                                        className="w-full bg-zinc-950 border border-zinc-800 p-2 text-xs rounded text-gray-500 font-medium"
                                         value={addressForm.city}
                                         readOnly
                                       />
@@ -398,10 +395,10 @@ Pedido conferido e finalizado!`;
                               </div>
 
                               <div>
-                                  <label className="text-[10px] text-gray-500 font-bold">Rua / Logradouro</label>
+                                  <label className="text-[10px] text-gray-400 font-bold mb-1 block">Rua</label>
                                   <input 
                                     placeholder="Nome da Rua" 
-                                    className="w-full border border-gray-300 p-1.5 text-xs rounded focus:border-orange-500 outline-none"
+                                    className="w-full bg-zinc-800 border border-zinc-600 p-2 text-xs rounded text-white placeholder-gray-500 focus:border-orange-500 outline-none transition-colors"
                                     value={addressForm.street}
                                     onChange={e => setAddressForm({...addressForm, street: e.target.value})}
                                   />
@@ -409,19 +406,19 @@ Pedido conferido e finalizado!`;
 
                               <div className="grid grid-cols-3 gap-2">
                                   <div className="col-span-1">
-                                      <label className="text-[10px] text-gray-500 font-bold">Número</label>
+                                      <label className="text-[10px] text-gray-400 font-bold mb-1 block">Número</label>
                                       <input 
                                         placeholder="Nº" 
-                                        className="w-full border border-gray-300 p-1.5 text-xs rounded focus:border-orange-500 outline-none"
+                                        className="w-full bg-zinc-800 border border-zinc-600 p-2 text-xs rounded text-white placeholder-gray-500 focus:border-orange-500 outline-none transition-colors"
                                         value={addressForm.number}
                                         onChange={e => setAddressForm({...addressForm, number: e.target.value})}
                                       />
                                   </div>
                                   <div className="col-span-2">
-                                      <label className="text-[10px] text-gray-500 font-bold">Bairro</label>
+                                      <label className="text-[10px] text-gray-400 font-bold mb-1 block">Bairro</label>
                                       <input 
                                         placeholder="Bairro" 
-                                        className="w-full border border-gray-300 p-1.5 text-xs rounded focus:border-orange-500 outline-none"
+                                        className="w-full bg-zinc-800 border border-zinc-600 p-2 text-xs rounded text-white placeholder-gray-500 focus:border-orange-500 outline-none transition-colors"
                                         value={addressForm.district}
                                         onChange={e => setAddressForm({...addressForm, district: e.target.value})}
                                       />
@@ -429,18 +426,18 @@ Pedido conferido e finalizado!`;
                               </div>
 
                               <div>
-                                  <label className="text-[10px] text-gray-500 font-bold">Complemento (Opcional)</label>
+                                  <label className="text-[10px] text-gray-400 font-bold mb-1 block">Complemento</label>
                                   <input 
                                     placeholder="Apto, Bloco..." 
-                                    className="w-full border border-gray-300 p-1.5 text-xs rounded focus:border-orange-500 outline-none"
+                                    className="w-full bg-zinc-800 border border-zinc-600 p-2 text-xs rounded text-white placeholder-gray-500 focus:border-orange-500 outline-none transition-colors"
                                     value={addressForm.complement}
                                     onChange={e => setAddressForm({...addressForm, complement: e.target.value})}
                                   />
                               </div>
 
-                              <div className="flex justify-end gap-2 pt-2 border-t border-gray-100">
-                                  <button onClick={cancelEditingAddress} className="text-xs text-gray-500 hover:text-gray-800 px-2">Cancelar</button>
-                                  <button onClick={() => saveAddress(order)} className="text-xs bg-orange-600 hover:bg-orange-700 text-white px-4 py-1.5 rounded font-medium shadow-sm">
+                              <div className="flex justify-end gap-2 pt-3 border-t border-zinc-800">
+                                  <button onClick={cancelEditingAddress} className="text-xs text-gray-400 hover:text-white px-2">Cancelar</button>
+                                  <button onClick={() => saveAddress(order)} className="text-xs bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded font-bold shadow-lg shadow-orange-900/20">
                                       Salvar Endereço
                                   </button>
                               </div>

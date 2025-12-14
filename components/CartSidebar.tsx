@@ -38,12 +38,14 @@ export const CartSidebar: React.FC<CartSidebarProps> = ({
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   
   // Address State (For Admin Override)
+  const [showAddressForm, setShowAddressForm] = useState(false);
   const [addressForm, setAddressForm] = useState({
       cep: '',
       street: '',
       number: '',
       district: '',
-      city: ''
+      city: '',
+      complement: ''
   });
   const [loadingAddress, setLoadingAddress] = useState(false);
 
@@ -64,7 +66,12 @@ export const CartSidebar: React.FC<CartSidebarProps> = ({
   const total = subtotal + invoiceFee + insuranceFee;
 
   const MIN_ORDER_VALUE = 20.00;
-  const canCheckout = total >= MIN_ORDER_VALUE && shippingMethod !== '';
+  
+  // Logic: Admins bypass shipping and min value checks. Regular users must select shipping.
+  const isShippingValid = isAdmin ? true : shippingMethod !== '';
+  const isMinValValid = isAdmin ? true : total >= MIN_ORDER_VALUE;
+  
+  const canCheckout = isMinValValid && isShippingValid;
 
   const handleCheckoutClick = () => {
     if (isAdmin && selectedUser) {
@@ -80,17 +87,19 @@ export const CartSidebar: React.FC<CartSidebarProps> = ({
   const handleSelectUser = (user: User) => {
       setSelectedUser(user);
       setIsSearchingClient(false);
+      // Pre-fill address form with user data
       setAddressForm({
           cep: user.cep || '',
           street: user.street || '', 
           number: user.number || '',
           district: user.district || '',
-          city: user.city || ''
+          city: user.city || '',
+          complement: user.complement || ''
       });
   };
 
-  const handleCepBlurInternal = async (cepValue: string) => {
-      const raw = cepValue.replace(/\D/g, '');
+  const handleCepBlurInternal = async () => {
+      const raw = addressForm.cep.replace(/\D/g, '');
       if (raw.length === 8) {
           setLoadingAddress(true);
           const data = await fetchAddressByCep(raw);
@@ -146,7 +155,9 @@ export const CartSidebar: React.FC<CartSidebarProps> = ({
           {items.length === 0 ? (
             <div className="h-full flex flex-col items-center justify-center text-center space-y-4 opacity-50">
               <p className="text-gray-500 font-medium">Seu carrinho está vazio</p>
-              <Button variant="outline" onClick={onClose}>Começar a comprar</Button>
+              <Button variant="outline" onClick={onClose}>
+                  {isAdmin ? '+ Adicionar Produto' : 'Começar a comprar'}
+              </Button>
             </div>
           ) : (
             items.map(item => (
@@ -183,7 +194,7 @@ export const CartSidebar: React.FC<CartSidebarProps> = ({
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                 </svg>
-                Selecionar mais produtos
+                {isAdmin ? 'Adicionar Produto' : 'Selecionar mais produtos'}
               </button>
           )}
         </div>
@@ -191,9 +202,9 @@ export const CartSidebar: React.FC<CartSidebarProps> = ({
         {items.length > 0 && (
           <div className="p-5 bg-gray-50 border-t border-gray-200">
             {isAdmin && (
-                <div className="mb-4 bg-white border border-orange-200 rounded-lg p-3">
+                <div className="mb-4 bg-white border border-gray-200 rounded-lg p-3 shadow-sm">
                     <div className="flex justify-between items-center mb-2">
-                        <h3 className="text-xs font-bold text-orange-800 uppercase">👤 Cliente</h3>
+                        <h3 className="text-xs font-bold text-gray-700 uppercase">👤 Cliente</h3>
                         {!isSearchingClient && !selectedUser && (
                             <button onClick={() => setIsSearchingClient(true)} className="text-xs bg-orange-100 text-orange-700 px-2 py-1 rounded font-bold">🔍 Buscar</button>
                         )}
@@ -202,7 +213,7 @@ export const CartSidebar: React.FC<CartSidebarProps> = ({
                     {!selectedUser ? (
                         isSearchingClient ? (
                             <div>
-                                <input autoFocus className="w-full border p-2 text-sm mb-2" placeholder="Nome/Tel..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+                                <input autoFocus className="w-full border p-2 text-sm mb-2 rounded" placeholder="Nome/Tel..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
                                 <div className="max-h-24 overflow-y-auto bg-gray-50 border rounded">
                                     {filteredUsers.map(u => (
                                         <div key={u.id} onClick={() => handleSelectUser(u)} className="p-2 text-xs hover:bg-orange-100 cursor-pointer border-b">
@@ -212,9 +223,92 @@ export const CartSidebar: React.FC<CartSidebarProps> = ({
                                     ))}
                                 </div>
                             </div>
-                        ) : <p className="text-sm text-gray-500 italic">Nenhum selecionado.</p>
+                        ) : <p className="text-sm text-gray-500 italic">Selecione um cliente para continuar.</p>
                     ) : (
-                        <p className="font-bold text-gray-800 text-sm">{selectedUser.name} <span className="text-gray-500 font-normal">({selectedUser.phone})</span></p>
+                        <div>
+                            <p className="font-bold text-gray-800 text-sm">{selectedUser.name} <span className="text-gray-500 font-normal">({selectedUser.phone})</span></p>
+                            
+                            {/* ADDRESS TOGGLE */}
+                            <div className="mt-3 pt-2 border-t border-gray-100">
+                                <label className="flex items-center gap-2 cursor-pointer mb-2 select-none">
+                                    <input 
+                                        type="checkbox" 
+                                        className="rounded text-orange-600 focus:ring-orange-500"
+                                        checked={showAddressForm}
+                                        onChange={(e) => setShowAddressForm(e.target.checked)}
+                                    />
+                                    <span className="text-xs font-bold text-gray-600">Editar dados de entrega</span>
+                                </label>
+
+                                {showAddressForm && (
+                                    <div className="space-y-3 bg-zinc-900 p-4 rounded-xl border border-zinc-700 animate-fade-in shadow-lg">
+                                        <div className="flex justify-between items-center mb-1">
+                                            <span className="text-xs font-bold text-white uppercase">📍 Endereço</span>
+                                            {loadingAddress && <span className="text-[10px] text-orange-400 animate-pulse">Buscando...</span>}
+                                        </div>
+                                        <div className="flex gap-2">
+                                            <div className="flex-1">
+                                                <label className="text-[10px] text-gray-400 font-bold mb-1 block">CEP</label>
+                                                <input 
+                                                    placeholder="00000-000" 
+                                                    className="w-full bg-zinc-800 border border-zinc-600 p-2 text-xs rounded text-white placeholder-gray-500 focus:border-orange-500 outline-none transition-colors"
+                                                    value={addressForm.cep}
+                                                    onChange={e => setAddressForm({...addressForm, cep: e.target.value})}
+                                                    onBlur={handleCepBlurInternal}
+                                                />
+                                            </div>
+                                            <div className="flex-[2]">
+                                                <label className="text-[10px] text-gray-400 font-bold mb-1 block">Cidade</label>
+                                                <input 
+                                                    placeholder="Cidade" 
+                                                    className="w-full bg-zinc-950 border border-zinc-800 p-2 text-xs rounded text-gray-500 font-medium"
+                                                    value={addressForm.city}
+                                                    readOnly
+                                                />
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <label className="text-[10px] text-gray-400 font-bold mb-1 block">Rua</label>
+                                            <input 
+                                                placeholder="Nome da Rua" 
+                                                className="w-full bg-zinc-800 border border-zinc-600 p-2 text-xs rounded text-white placeholder-gray-500 focus:border-orange-500 outline-none transition-colors"
+                                                value={addressForm.street}
+                                                onChange={e => setAddressForm({...addressForm, street: e.target.value})}
+                                            />
+                                        </div>
+                                        <div className="flex gap-2">
+                                            <div className="flex-1">
+                                                <label className="text-[10px] text-gray-400 font-bold mb-1 block">Número</label>
+                                                <input 
+                                                    placeholder="123" 
+                                                    className="w-full bg-zinc-800 border border-zinc-600 p-2 text-xs rounded text-white placeholder-gray-500 focus:border-orange-500 outline-none transition-colors"
+                                                    value={addressForm.number}
+                                                    onChange={e => setAddressForm({...addressForm, number: e.target.value})}
+                                                />
+                                            </div>
+                                            <div className="flex-[2]">
+                                                <label className="text-[10px] text-gray-400 font-bold mb-1 block">Bairro</label>
+                                                <input 
+                                                    placeholder="Bairro" 
+                                                    className="w-full bg-zinc-800 border border-zinc-600 p-2 text-xs rounded text-white placeholder-gray-500 focus:border-orange-500 outline-none transition-colors"
+                                                    value={addressForm.district}
+                                                    onChange={e => setAddressForm({...addressForm, district: e.target.value})}
+                                                />
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <label className="text-[10px] text-gray-400 font-bold mb-1 block">Complemento</label>
+                                            <input 
+                                                placeholder="Apto, Bloco, etc..." 
+                                                className="w-full bg-zinc-800 border border-zinc-600 p-2 text-xs rounded text-white placeholder-gray-500 focus:border-orange-500 outline-none transition-colors"
+                                                value={addressForm.complement}
+                                                onChange={e => setAddressForm({...addressForm, complement: e.target.value})}
+                                            />
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
                     )}
                 </div>
             )}
@@ -232,17 +326,17 @@ export const CartSidebar: React.FC<CartSidebarProps> = ({
                         </button>
                     ))}
                 </div>
-                {!shippingMethod && <p className="text-xs text-red-500 mt-1">Selecione uma forma de envio.</p>}
+                {!shippingMethod && !isAdmin && <p className="text-xs text-red-500 mt-1">Selecione uma forma de envio.</p>}
             </div>
 
             <div className="space-y-2 mb-4">
                 <label className="flex items-center gap-2 p-2 border rounded cursor-pointer bg-white">
                     <input type="checkbox" checked={wantsInvoice} onChange={(e) => setWantsInvoice(e.target.checked)} className="rounded text-orange-600" />
-                    <span className="text-xs text-gray-700 font-bold">Adicionar Nota Fiscal (+6%)</span>
+                    <span className="text-xs text-gray-700 font-bold">Adicionar Nota Fiscal (+6%) <span className="text-gray-400 font-normal">(Opcional)</span></span>
                 </label>
                 <label className="flex items-center gap-2 p-2 border rounded cursor-pointer bg-white">
                     <input type="checkbox" checked={wantsInsurance} onChange={(e) => setWantsInsurance(e.target.checked)} className="rounded text-orange-600" />
-                    <span className="text-xs text-gray-700 font-bold">Adicionar Seguro (+3%)</span>
+                    <span className="text-xs text-gray-700 font-bold">Adicionar Seguro (+3%) <span className="text-gray-400 font-normal">(Opcional)</span></span>
                 </label>
             </div>
 

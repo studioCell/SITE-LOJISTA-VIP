@@ -1,3 +1,5 @@
+
+
 import { 
   collection, 
   doc, 
@@ -35,6 +37,9 @@ const handleFirestoreError = (err: any, fallback: any = null) => {
   const msg = err?.message || '';
   if (err?.code === 'unavailable' || msg.includes('offline') || msg.includes('network')) {
     console.debug("Firestore offline/unavailable (using fallback data).");
+  } else if (err?.code === 'permission-denied') {
+    console.error("Permissão negada no Firestore.", err);
+    alert("ERRO DE PERMISSÃO: Você não tem permissão para excluir/editar este item no banco de dados.");
   } else {
     console.warn("Firestore operation failed (using fallback). Check firebaseConfig.", err);
   }
@@ -205,11 +210,15 @@ export const updateProduct = async (product: Product) => {
   } catch (error) { handleFirestoreError(error); }
 };
 
-export const deleteProduct = async (id: string) => {
-  if (!isFirebaseConfigured) return;
+export const deleteProduct = async (id: string): Promise<boolean> => {
+  if (!isFirebaseConfigured) return false;
   try {
     await deleteDoc(doc(db, PRODUCTS_COL, id));
-  } catch (error) { handleFirestoreError(error); }
+    return true;
+  } catch (error) { 
+    handleFirestoreError(error);
+    return false;
+  }
 };
 
 export const updateProductDescription = async (id: string, newDescription: string) => {
@@ -229,6 +238,18 @@ export const toggleProductAvailability = async (id: string) => {
       await updateDoc(productRef, { available: !current });
     }
   } catch (error) { handleFirestoreError(error); }
+};
+
+export const toggleProductPromo = async (id: string) => {
+    if (!isFirebaseConfigured) return;
+    try {
+        const productRef = doc(db, PRODUCTS_COL, id);
+        const snap = await getDoc(productRef);
+        if (snap.exists()) {
+            const current = snap.data().isPromo || false;
+            await updateDoc(productRef, { isPromo: !current });
+        }
+    } catch (error) { handleFirestoreError(error); }
 };
 
 export const incrementProductView = async (id: string) => {
@@ -383,11 +404,15 @@ export const updateUser = async (user: User) => {
   } catch (error) { handleFirestoreError(error); }
 };
 
-export const deleteUser = async (userId: string) => {
-  if (!isFirebaseConfigured) return;
+export const deleteUser = async (userId: string): Promise<boolean> => {
+  if (!isFirebaseConfigured) return false;
   try {
     await deleteDoc(doc(db, USERS_COL, userId));
-  } catch (error) { handleFirestoreError(error); }
+    return true;
+  } catch (error) { 
+    handleFirestoreError(error);
+    return false; 
+  }
 };
 
 export const registerVendor = async (name: string, phone: string, password: string): Promise<{ success: boolean; message: string }> => {
@@ -567,7 +592,6 @@ export const deleteOrder = async (orderId: string): Promise<boolean> => {
     return true;
   } catch (error: any) { 
     console.error("Serviço: Erro ao excluir pedido", error);
-    // Specifically warn about permissions which is the most common cause of "nothing happens"
     if (error.code === 'permission-denied') {
         alert("ERRO DE PERMISSÃO: O banco de dados recusou a exclusão. Verifique as Regras de Segurança no Firebase Console.");
     }

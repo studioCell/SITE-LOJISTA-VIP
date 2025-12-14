@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { Product, CartItem, Story, User, ShopSettings, Order, Category } from './types';
 import { 
@@ -40,6 +39,7 @@ import { OrderEditModal } from './components/OrderEditModal';
 import { SalesArea } from './components/SalesArea';
 import { UserOrdersModal } from './components/UserOrdersModal';
 import { ProductFormModal } from './components/ProductFormModal';
+import { OrderSuccessModal } from './components/OrderSuccessModal';
 
 function App() {
   const [products, setProducts] = useState<Product[]>([]);
@@ -84,6 +84,9 @@ function App() {
   // Quick Edit Product State (Admin)
   const [quickEditingProduct, setQuickEditingProduct] = useState<Product | null>(null);
   const [isProductFormOpen, setIsProductFormOpen] = useState(false);
+
+  // Success Modal State
+  const [showOrderSuccess, setShowOrderSuccess] = useState(false);
 
   // Policy Modal State
   const [policyModal, setPolicyModal] = useState<{ isOpen: boolean; title: string; content: string }>({
@@ -255,49 +258,50 @@ function App() {
         // Await the save to ensure DB consistency before UI changes
         await saveOrder(newOrder);
         setCart([]); // Clear cart locally after successful save
-      } catch (error) {
-        console.error("Erro ao salvar pedido:", error);
-        alert("Houve um erro ao registrar o pedido no sistema. Tente novamente.");
-        return; // Don't open WhatsApp if save failed
-      }
-    }
-
-    // Build WA Message
-    const lines = cart.map(item => {
-      let line = `- ${item.quantity}x ${item.name}`;
-      line += `\n   (Un: R$ ${item.price.toFixed(2)})`; // Explicit Unit Price
-      if (item.note) line += `\n   Obs: ${item.note}`;
-      return line;
-    });
-
-    let customerInfo = "";
-    if (targetUser) {
-        customerInfo += `\n*Cliente:* ${targetUser.name}`;
-        customerInfo += `\n*Tel:* ${targetUser.phone || 'Não informado'}`;
         
-        // Use the same logic as the order object for display
-        const displayStreet = targetAddress?.street || targetUser.street;
-        const displayNumber = targetAddress?.number || targetUser.number;
-        const displayDistrict = targetAddress?.district || targetUser.district;
-        const displayCity = targetAddress?.city || targetUser.city;
-        const displayCep = targetAddress?.cep || targetUser.cep;
+        // TRIGGER SUCCESS MODAL
+        setIsCartOpen(false);
+        setShowOrderSuccess(true);
+        
+        // DELAY WHATSAPP OPENING
+        setTimeout(() => {
+            setShowOrderSuccess(false);
+            
+            // Build WA Message
+            const lines = cart.map(item => {
+              let line = `- ${item.quantity}x ${item.name}`;
+              line += `\n   (Un: R$ ${item.price.toFixed(2)})`; // Explicit Unit Price
+              if (item.note) line += `\n   Obs: ${item.note}`;
+              return line;
+            });
 
-        if (displayStreet) {
-             customerInfo += `\n*Endereço:* ${displayStreet}, ${displayNumber || 'S/N'}`;
-             if(displayDistrict) customerInfo += ` - ${displayDistrict}`;
-             if(displayCity) customerInfo += `\n${displayCity}`;
-             if(displayCep) customerInfo += ` (CEP: ${displayCep})`;
-        } else if (displayCity) {
-            customerInfo += `\n*Endereço:* ${displayCity}`;
-        }
-    }
+            let customerInfo = "";
+            if (targetUser) {
+                customerInfo += `\n*Cliente:* ${targetUser.name}`;
+                customerInfo += `\n*Tel:* ${targetUser.phone || 'Não informado'}`;
+                
+                const displayStreet = targetAddress?.street || targetUser.street;
+                const displayNumber = targetAddress?.number || targetUser.number;
+                const displayDistrict = targetAddress?.district || targetUser.district;
+                const displayCity = targetAddress?.city || targetUser.city;
+                const displayCep = targetAddress?.cep || targetUser.cep;
 
-    let extraInfo = "";
-    if (extras.wantsInvoice) extraInfo += "\n*Com Nota Fiscal*";
-    if (extras.wantsInsurance) extraInfo += "\n*Com Seguro*";
-    if (extras.shippingMethod) extraInfo += `\n*Envio:* ${extras.shippingMethod}`;
+                if (displayStreet) {
+                    customerInfo += `\n*Endereço:* ${displayStreet}, ${displayNumber || 'S/N'}`;
+                    if(displayDistrict) customerInfo += ` - ${displayDistrict}`;
+                    if(displayCity) customerInfo += `\n${displayCity}`;
+                    if(displayCep) customerInfo += ` (CEP: ${displayCep})`;
+                } else if (displayCity) {
+                    customerInfo += `\n*Endereço:* ${displayCity}`;
+                }
+            }
 
-    const text = 
+            let extraInfo = "";
+            if (extras.wantsInvoice) extraInfo += "\n*Com Nota Fiscal*";
+            if (extras.wantsInsurance) extraInfo += "\n*Com Seguro*";
+            if (extras.shippingMethod) extraInfo += `\n*Envio:* ${extras.shippingMethod}`;
+
+            const text = 
 `*Novo Pedido - Lojista Vip*
 ----------------------------
 ${lines.join('\n')}
@@ -308,11 +312,18 @@ ${customerInfo}
 
 *Aguardando cálculo do frete e confirmação...*
 `;
-    
-    const encodedText = encodeURIComponent(text);
-    const phoneNumber = settings?.contactNumber || '5562992973853';
-    window.open(`https://api.whatsapp.com/send?phone=${phoneNumber}&text=${encodedText}`, '_blank');
-    setIsCartOpen(false);
+            
+            const encodedText = encodeURIComponent(text);
+            const phoneNumber = settings?.contactNumber || '5562992973853';
+            window.open(`https://api.whatsapp.com/send?phone=${phoneNumber}&text=${encodedText}`, '_blank');
+        }, 2500); // 2.5s delay to show success animation
+
+      } catch (error) {
+        console.error("Erro ao salvar pedido:", error);
+        alert("Houve um erro ao registrar o pedido no sistema. Tente novamente.");
+        return; 
+      }
+    }
   };
 
   const handleContact = () => {
@@ -475,22 +486,20 @@ ${customerInfo}
   const isStaff = currentUser?.isAdmin || currentUser?.isVendor;
 
   // --- Filtering Logic ---
-  const availableProducts = isStaff ? products : products.filter(p => p.available);
+  const availableProducts = products.filter(p => p.available);
+  const promoProducts = availableProducts.filter(p => p.isPromo);
   
   let filteredProducts = availableProducts;
 
   if (selectedCategory === 'Novidades da Semana') {
-      // Show ALL products, sorted by createdAt descending (newest first)
       filteredProducts = [...availableProducts].sort((a, b) => {
           const dateA = a.createdAt || 0;
           const dateB = b.createdAt || 0;
           return dateB - dateA;
       });
   } else if (selectedCategory) {
-      // Filter by category
       filteredProducts = availableProducts.filter(p => p.category === selectedCategory);
   }
-  // Else (No category selected) -> Shows all products by default, order might be random or by ID as per standard Firestore fetch
 
   const totalPages = Math.ceil(filteredProducts.length / ITEMS_PER_PAGE);
   const displayedProducts = filteredProducts.slice(
@@ -582,7 +591,7 @@ ${customerInfo}
                </div>
              )}
 
-             {/* Dynamic Hero Cover Section */}
+             {/* Static Hero Cover (Always shown since carousel is removed) */}
              {!selectedCategory && (
                 <div className="mb-10 rounded-2xl overflow-hidden shadow-lg relative group bg-gray-100 min-h-[100px]">
                   {heroImage && !heroImageError ? (
@@ -625,6 +634,27 @@ ${customerInfo}
                   </div>
                 </div>
                 
+                {/* PROMO SECTION */}
+                {!selectedCategory && promoProducts.length > 0 && (
+                    <div className="mb-8">
+                        <h3 className="text-lg font-bold text-orange-600 mb-3 flex items-center gap-2">
+                            <span className="text-xl">🔥</span> Ofertas Imperdíveis
+                        </h3>
+                        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 bg-orange-50 p-4 rounded-xl border border-orange-100">
+                            {promoProducts.map(product => (
+                                <ProductCard 
+                                    key={product.id} 
+                                    product={product} 
+                                    onAddToCart={(p) => addToCart(p, 1)}
+                                    onClick={(p) => setViewingProduct(p)}
+                                    currentUser={currentUser}
+                                    onEdit={currentUser?.isAdmin ? handleQuickEditProduct : undefined}
+                                />
+                            ))}
+                        </div>
+                    </div>
+                )}
+
                 <CategoryFilter 
                   categories={categories}
                   selectedCategory={selectedCategory}
@@ -726,7 +756,7 @@ ${customerInfo}
       <UserOrdersModal 
         isOpen={isUserOrdersOpen}
         onClose={() => setIsUserOrdersOpen(false)}
-        currentUser={currentUser}
+        user={currentUser}
       />
 
       <SalesArea 
@@ -777,7 +807,7 @@ ${customerInfo}
           onClose={() => setViewingStoryId(null)}
           onDelete={handleDeleteStory}
           onGoToProduct={handleStoryProductLink}
-          isAdmin={!!currentUser?.isAdmin} // Vendors cannot manage stories
+          isAdmin={!!currentUser?.isAdmin} 
           users={currentUser?.isAdmin ? [] : undefined} 
         />
       )}
@@ -804,6 +834,8 @@ ${customerInfo}
         onSave={handleQuickSaveProduct}
         categories={categories}
       />
+
+      <OrderSuccessModal isOpen={showOrderSuccess} />
     </div>
   );
 }

@@ -49,12 +49,12 @@ export const Header: React.FC<HeaderProps> = ({
                <div className="flex items-center gap-3">
                  <div className="flex flex-col items-end">
                    <span className="text-sm font-bold text-white leading-tight">{currentUser.name.split(' ')[0]}</span>
-                   {currentUser.isAdmin && (
+                   {(currentUser.isAdmin || currentUser.isVendor) && (
                      <button 
                         onClick={onAdminClick}
                         className="text-[10px] text-orange-400 font-bold hover:underline uppercase"
                       >
-                        Painel Admin
+                        {currentUser.isAdmin ? 'Painel Admin' : 'Painel Vendedor'}
                      </button>
                    )}
                  </div>

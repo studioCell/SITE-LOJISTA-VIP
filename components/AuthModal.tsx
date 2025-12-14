@@ -126,13 +126,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLogin, 
 
   return (
     <div className="fixed inset-0 z-[80] flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+      <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={onClose} />
       
-      <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-sm p-8 overflow-hidden animate-scale-up max-h-[90vh] overflow-y-auto">
+      <div className="relative bg-zinc-900 border border-zinc-800 rounded-xl shadow-2xl w-full max-w-sm p-8 overflow-hidden animate-scale-up max-h-[90vh] overflow-y-auto">
         {/* Close Button */}
         <button 
           onClick={onClose} 
-          className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-full p-1 transition-colors"
+          className="absolute top-4 right-4 text-gray-400 hover:text-white bg-zinc-800 hover:bg-zinc-700 rounded-full p-1 transition-colors"
         >
           <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -145,24 +145,24 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLogin, 
                <img src={logo} alt="Logo" className="w-full h-full object-cover" />
             </div>
           ) : (
-            <div className="w-16 h-16 bg-orange-600 rounded-lg mx-auto flex items-center justify-center text-white font-bold text-2xl shadow-lg mb-3">
+            <div className="w-16 h-16 bg-gradient-to-tr from-orange-600 to-red-600 rounded-lg mx-auto flex items-center justify-center text-white font-bold text-2xl shadow-lg shadow-orange-900/50 mb-3">
               LV
             </div>
           )}
-          <h2 className="text-xl font-bold text-gray-800">Bem-vindo ao Lojista VIP</h2>
-          <p className="text-sm text-gray-500 mt-1">Acesse sua conta para ver suas compras</p>
+          <h2 className="text-xl font-bold text-white">Bem-vindo ao Lojista VIP</h2>
+          <p className="text-sm text-gray-400 mt-1">Acesse sua conta para ver suas compras</p>
         </div>
 
         {/* Tabs */}
-        <div className="flex border-b border-gray-100 mb-6">
+        <div className="flex border-b border-zinc-700 mb-6">
           <button 
-            className={`flex-1 pb-2 text-sm font-medium transition-colors ${mode === 'login' ? 'text-orange-600 border-b-2 border-orange-600' : 'text-gray-400'}`}
+            className={`flex-1 pb-2 text-sm font-bold transition-colors ${mode === 'login' ? 'text-orange-500 border-b-2 border-orange-500' : 'text-zinc-500 hover:text-gray-300'}`}
             onClick={() => switchMode('login')}
           >
             Entrar
           </button>
           <button 
-            className={`flex-1 pb-2 text-sm font-medium transition-colors ${mode === 'register' ? 'text-orange-600 border-b-2 border-orange-600' : 'text-gray-400'}`}
+            className={`flex-1 pb-2 text-sm font-bold transition-colors ${mode === 'register' ? 'text-orange-500 border-b-2 border-orange-500' : 'text-zinc-500 hover:text-gray-300'}`}
             onClick={() => switchMode('register')}
           >
             Cadastrar
@@ -173,30 +173,30 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLogin, 
           {mode === 'login' ? (
             <>
               <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Celular ou Usuário Admin</label>
+                <label className="block text-xs font-bold text-gray-400 mb-1">Celular ou Usuário Admin</label>
                 <input 
                   type="text" 
                   value={identifier}
                   onChange={(e) => setIdentifier(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 outline-none text-sm"
+                  className="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg focus:ring-2 focus:ring-orange-600 focus:border-transparent outline-none text-sm text-white placeholder-gray-500"
                   placeholder="Seu número"
                   required
                 />
               </div>
               <div className="relative">
-                <label className="block text-xs font-medium text-gray-700 mb-1">Senha</label>
+                <label className="block text-xs font-bold text-gray-400 mb-1">Senha</label>
                 <input 
                   type={showPassword ? "text" : "password"} 
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 outline-none text-sm"
+                  className="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg focus:ring-2 focus:ring-orange-600 focus:border-transparent outline-none text-sm text-white placeholder-gray-500"
                   placeholder="••••••"
                   required
                 />
                 <button 
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-7 text-gray-400 hover:text-gray-600"
+                  className="absolute right-3 top-7 text-gray-500 hover:text-white"
                 >
                   {showPassword ? (
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -216,76 +216,76 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLogin, 
                   id="remember" 
                   checked={remember} 
                   onChange={(e) => setRemember(e.target.checked)}
-                  className="rounded text-orange-600 focus:ring-orange-500"
+                  className="rounded bg-zinc-800 border-zinc-600 text-orange-600 focus:ring-orange-500"
                 />
-                <label htmlFor="remember" className="text-xs text-gray-600">Salvar senha</label>
+                <label htmlFor="remember" className="text-xs text-gray-400">Salvar senha</label>
               </div>
             </>
           ) : (
             <>
               <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Nome Completo</label>
+                <label className="block text-xs font-bold text-gray-400 mb-1">Nome Completo</label>
                 <input 
                   type="text" 
                   value={regName}
                   onChange={(e) => setRegName(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 outline-none text-sm"
+                  className="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg focus:ring-2 focus:ring-orange-600 outline-none text-sm text-white placeholder-gray-500"
                   required
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Celular (WhatsApp)</label>
+                <label className="block text-xs font-bold text-gray-400 mb-1">Celular (WhatsApp)</label>
                 <input 
                   type="tel" 
                   value={regPhone}
                   onChange={(e) => setRegPhone(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 outline-none text-sm"
+                  className="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg focus:ring-2 focus:ring-orange-600 outline-none text-sm text-white placeholder-gray-500"
                   placeholder="(00) 00000-0000"
                   required
                 />
               </div>
               <div className="flex gap-2">
                 <div className="flex-1">
-                  <label className="block text-xs font-medium text-gray-700 mb-1">CEP</label>
+                  <label className="block text-xs font-bold text-gray-400 mb-1">CEP</label>
                   <input 
                     type="text" 
                     value={regCep}
                     onChange={(e) => handleCepChange(e.target.value)}
                     onBlur={handleCepBlur}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 outline-none text-sm"
+                    className="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg focus:ring-2 focus:ring-orange-600 outline-none text-sm text-white placeholder-gray-500"
                     placeholder="00000-000"
                     maxLength={9}
                     required
                   />
                 </div>
                 <div className="flex-1">
-                  <label className="block text-xs font-medium text-gray-700 mb-1">Cidade</label>
+                  <label className="block text-xs font-bold text-gray-400 mb-1">Cidade</label>
                   <input 
                     type="text" 
                     value={regCity}
                     readOnly
-                    className="w-full px-4 py-2 border border-gray-200 bg-gray-50 rounded-lg text-gray-500 outline-none text-sm"
+                    className="w-full px-4 py-2 bg-zinc-950 border border-zinc-800 rounded-lg text-gray-500 outline-none text-sm font-bold"
                   />
                 </div>
               </div>
               
               <div className="flex gap-2">
                   <div className="flex-[2]">
-                      <label className="block text-xs font-medium text-gray-700 mb-1">Rua</label>
+                      <label className="block text-xs font-bold text-gray-400 mb-1">Rua</label>
                       <input 
                         value={regStreet}
                         onChange={e => setRegStreet(e.target.value)}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 outline-none text-sm"
+                        className="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg focus:ring-2 focus:ring-orange-600 outline-none text-sm text-white placeholder-gray-500"
                         placeholder="Rua..."
                         required
                       />
                   </div>
                   <div className="flex-1">
-                      <label className="block text-xs font-medium text-gray-700 mb-1">Nº</label>
+                      <label className="block text-xs font-bold text-gray-400 mb-1">Nº</label>
                       <input 
                         value={regNumber}
                         onChange={e => setRegNumber(e.target.value)}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 outline-none text-sm"
+                        className="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg focus:ring-2 focus:ring-orange-600 outline-none text-sm text-white placeholder-gray-500"
                         placeholder="123"
                         required
                       />
@@ -294,42 +294,42 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLogin, 
 
               <div className="flex gap-2">
                   <div className="flex-1">
-                      <label className="block text-xs font-medium text-gray-700 mb-1">Bairro</label>
+                      <label className="block text-xs font-bold text-gray-400 mb-1">Bairro</label>
                       <input 
                         value={regDistrict}
                         onChange={e => setRegDistrict(e.target.value)}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 outline-none text-sm"
+                        className="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg focus:ring-2 focus:ring-orange-600 outline-none text-sm text-white placeholder-gray-500"
                         placeholder="Bairro"
                         required
                       />
                   </div>
                   <div className="flex-1">
-                      <label className="block text-xs font-medium text-gray-700 mb-1">Comp. (Opcional)</label>
+                      <label className="block text-xs font-bold text-gray-400 mb-1">Comp. (Opcional)</label>
                       <input 
                         value={regComplement}
                         onChange={e => setRegComplement(e.target.value)}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 outline-none text-sm"
+                        className="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg focus:ring-2 focus:ring-orange-600 outline-none text-sm text-white placeholder-gray-500"
                         placeholder="Apto, Bloco..."
                       />
                   </div>
               </div>
 
               <div className="relative">
-                <label className="block text-xs font-medium text-gray-700 mb-1">Crie uma senha de 6 dígitos</label>
+                <label className="block text-xs font-bold text-gray-400 mb-1">Crie uma senha de 6 dígitos</label>
                 <input 
                   type={showPassword ? "text" : "password"}
                   inputMode="numeric"
                   maxLength={6}
                   value={regPass}
                   onChange={(e) => setRegPass(e.target.value.replace(/\D/g, ''))}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 outline-none text-sm"
+                  className="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg focus:ring-2 focus:ring-orange-600 outline-none text-sm text-white placeholder-gray-500"
                   placeholder="123456"
                   required
                 />
                 <button 
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-7 text-gray-400 hover:text-gray-600"
+                  className="absolute right-3 top-7 text-gray-500 hover:text-white"
                 >
                   {showPassword ? (
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -346,10 +346,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLogin, 
             </>
           )}
 
-          {error && <p className="text-red-500 text-xs bg-red-50 p-2 rounded border border-red-100">{error}</p>}
+          {error && <p className="text-red-400 text-xs bg-red-900/20 p-2 rounded border border-red-900/50">{error}</p>}
 
           <div className="pt-2">
-            <Button type="submit" className="w-full !bg-orange-600 hover:!bg-orange-700" isLoading={loading}>
+            <Button type="submit" className="w-full !bg-orange-600 hover:!bg-orange-700 text-white font-bold" isLoading={loading}>
               {mode === 'login' ? 'Entrar' : 'Cadastrar e Entrar'}
             </Button>
           </div>

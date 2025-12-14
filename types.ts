@@ -9,6 +9,7 @@ export interface Product {
   available: boolean; 
   createdAt?: number;
   views?: number; // New: Track popularity
+  isPromo?: boolean; // New: Promotional status
 }
 
 export interface CartItem extends Product {
