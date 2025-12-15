@@ -33,8 +33,27 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({ isOpen, onCl
           description: productToEdit.description || '' // Ensure it's not undefined
         });
       } else {
-        // Default to first category if available
-        setFormData({ name: '', price: '', category: categories.length > 0 ? categories[0].name : '', image: '', description: '' });
+        // Logic to retrieve the last used category from localStorage
+        const lastUsedCategory = localStorage.getItem('last_product_category');
+        
+        // Determine default category: Last Used -> First Available -> 'Geral'
+        let defaultCategory = '';
+        
+        if (lastUsedCategory && categories.some(c => c.name === lastUsedCategory)) {
+            defaultCategory = lastUsedCategory;
+        } else if (categories.length > 0) {
+            defaultCategory = categories[0].name;
+        } else {
+            defaultCategory = 'Geral';
+        }
+
+        setFormData({ 
+            name: '', 
+            price: '', 
+            category: defaultCategory, 
+            image: '', 
+            description: '' 
+        });
       }
     }
   }, [productToEdit, isOpen, categories]);
@@ -65,6 +84,9 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({ isOpen, onCl
       description: formData.description,
       available: productToEdit ? productToEdit.available : true
     };
+
+    // Save the selected category to localStorage for next time
+    localStorage.setItem('last_product_category', formData.category);
 
     if (productToEdit) {
       onSave({

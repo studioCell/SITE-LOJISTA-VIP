@@ -194,408 +194,326 @@ export const SalesArea: React.FC<SalesAreaProps> = ({ isOpen, onClose, onEditIte
     await handleStatusChange(order, 'realizado');
 
     // 2. Build detailed message
-    const itemsList = order.items.map(i => {
-        const totalItem = i.price * i.quantity;
-        return `${i.quantity}x ${i.name}\n(Unit: R$ ${i.price.toFixed(2)}) = R$ ${totalItem.toFixed(2)}`;
-    }).join('\n\n');
+    const now = new Date();
+    const dateStr = now.toLocaleDateString('pt-BR');
+    const timeStr = now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 
-    const subtotal = order.items.reduce((acc, item) => acc + (item.price * item.quantity), 0);
-    
-    let feesText = '';
-    if (order.wantsInvoice) feesText += `Nota Fiscal: Sim (Incluso)\n`;
-    if (order.wantsInsurance) feesText += `Seguro: Sim (Incluso)\n`;
-
-    let addressBlock = `*Endereço de Entrega:*\n`;
+    let addressBlock = "";
     if (order.userStreet) {
-        addressBlock += `${order.userStreet}, ${order.userNumber || 'S/N'}\n`;
-        if (order.userDistrict) addressBlock += `Bairro: ${order.userDistrict}\n`;
-        if (order.userComplement) addressBlock += `Comp: ${order.userComplement}\n`;
-        addressBlock += `${order.userCity || ''} - CEP: ${order.userCep || ''}`;
+        addressBlock = `${order.userStreet}, ${order.userNumber || 'S/N'}`;
+        if (order.userDistrict) addressBlock += ` - ${order.userDistrict}`;
+        if (order.userComplement) addressBlock += ` (${order.userComplement})`;
+        addressBlock += `\n${order.userCity || ''} / ${order.userCep || ''}`;
     } else {
-        addressBlock += `Retirada / A Combinar (${order.userCity || 'Cidade não inf.'})`;
+        // Se não tiver rua, mostra apenas a cidade ou deixa em branco se nem cidade tiver
+        addressBlock = order.userCity || '';
     }
 
-    const message = `*PEDIDO FINALIZADO #${order.id.slice(-6)}*
+    const itemsList = order.items.map(i => {
+        const totalItem = i.price * i.quantity;
+        let itemStr = `${i.quantity} . ${i.name} (R$ ${i.price.toFixed(2)}) = R$ ${totalItem.toFixed(2)}`;
+        if (i.note) itemStr += `\n( ${i.note} )`;
+        return itemStr;
+    }).join('\n');
 
-*Cliente:* ${order.userName}
-*Tel:* ${order.userPhone}
+    // Lógica de Frete e Mensagem Final
+    let shippingInfoText = order.shippingMethod || "A Combinar";
+    let finalMessage = "Confirma o pedido?";
+
+    switch (order.shippingMethod) {
+        case 'Retirada':
+            shippingInfoText = "Retirada (Não é cobrado o frete)";
+            finalMessage = "Confirma o pedido? Vou te enviar os dados do endereço para retirada.";
+            break;
+        case 'Correios':
+            shippingInfoText = "Correios (Vou calcular o frete pra você)";
+            finalMessage = "Confirma o pedido? Logo mais vou calcular seu frete, me confirmar o Cep de envio por gentileza.";
+            break;
+        case 'Transportadora':
+            shippingInfoText = "Transportadora";
+            finalMessage = "Confirma o pedido? Logo mais vou calcular seu frete, me confirmar o Cep de envio por gentileza.";
+            break;
+        case 'Motoboy':
+            shippingInfoText = "Motoboy (Cobrado de 20 a 40 reais dentro de Goiânia)";
+            finalMessage = "Confirma o pedido? Me envie a localização para que eu possa te passar o valor do motoboy.";
+            break;
+        default:
+            finalMessage = "Confirma o pedido?";
+            break;
+    }
+
+    const text = 
+`🧾 PEDIDO – ${order.userName.toUpperCase()}
+Cód: #${order.id.slice(-6)}
+Contato: ${order.userPhone}
 
 ${addressBlock}
 
-*Resumo do Pedido:*
+🕒 Data: ${dateStr}
+🕒 Hora: ${timeStr}
+📌 Status: Aguardando aprovação
+
+**📦 PRODUTOS:
+
 ${itemsList}
 
-*Valores:*
-Subtotal: R$ ${subtotal.toFixed(2)}
-Frete: R$ ${(order.shippingCost || 0).toFixed(2)}
-Desconto: - R$ ${(order.discount || 0).toFixed(2)}
-${feesText}
-*TOTAL GERAL: R$ ${order.total.toFixed(2)}*
+📦 Envio: ${shippingInfoText}
 
-Pedido conferido e finalizado!`;
+🔖 DESCONTO: R$ ${(order.discount || 0).toFixed(2)}
+💰 TOTAL DO PEDIDO: *R$ ${order.total.toFixed(2)}*
 
-    const encoded = encodeURIComponent(message);
-    const phoneNumber = order.userPhone.replace(/\D/g, '');
-    window.open(`https://api.whatsapp.com/send?phone=55${phoneNumber}&text=${encoded}`, '_blank');
+${finalMessage}`;
+            
+    const encodedText = encodeURIComponent(text);
+    const phoneNumber = '5562992973853'; // Store number
+    window.open(`https://api.whatsapp.com/send?phone=${phoneNumber}&text=${encodedText}`, '_blank');
   };
 
-  const filteredOrders = orders.filter(o => {
-    if (filter === 'active') {
-      return ['orcamento', 'realizado', 'pagamento_pendente', 'preparacao'].includes(o.status);
-    }
-    return true;
+  if (!isOpen) return null;
+
+  // Filter orders
+  const displayedOrders = orders.filter(o => {
+      // Vendor Filter
+      if (currentUser?.isVendor && o.sellerId !== currentUser.id) return false;
+      
+      if (filter === 'active') {
+          return !['entregue', 'cancelado', 'devolucao'].includes(o.status);
+      }
+      return true;
   });
 
   return (
-    <>
-      <div 
-        className={`fixed inset-0 bg-black/50 backdrop-blur-sm z-[60] transition-opacity duration-300 ${isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
-        onClick={onClose}
-      />
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
       
-      <div className={`fixed top-0 right-0 h-full w-full sm:w-[500px] bg-gray-100 z-[70] shadow-2xl transform transition-transform duration-300 flex flex-col ${isOpen ? 'translate-x-0' : 'translate-x-full'}`}>
-        
+      <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-6xl p-6 max-h-[90vh] overflow-y-auto animate-fade-in-up flex flex-col">
         {/* Header */}
-        <div className="bg-white p-5 border-b border-gray-200 flex justify-between items-center shadow-sm">
-          <div>
-            <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
-              <span className="text-2xl">💰</span> Gestão de Vendas
-            </h2>
-            <p className="text-xs text-gray-500">Fluxo de caixa e pedidos</p>
-          </div>
-          <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
+        <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4 border-b border-gray-100 pb-4">
+           <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
+             <span className="text-3xl">📋</span> Gerenciamento de Pedidos
+           </h2>
+           
+           <div className="flex bg-gray-100 p-1 rounded-lg">
+               <button 
+                 onClick={() => setFilter('active')}
+                 className={`px-4 py-2 rounded-md text-sm font-bold transition-all ${filter === 'active' ? 'bg-white shadow text-orange-600' : 'text-gray-500 hover:text-gray-700'}`}
+               >
+                 Em Andamento ({orders.filter(o => !['entregue', 'cancelado', 'devolucao'].includes(o.status)).length})
+               </button>
+               <button 
+                 onClick={() => setFilter('all')}
+                 className={`px-4 py-2 rounded-md text-sm font-bold transition-all ${filter === 'all' ? 'bg-white shadow text-orange-600' : 'text-gray-500 hover:text-gray-700'}`}
+               >
+                 Todos ({orders.length})
+               </button>
+           </div>
+           
+           <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+             <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+             </svg>
+           </button>
         </div>
 
-        {/* Filters */}
-        <div className="p-4 bg-white border-b border-gray-200 flex gap-2">
-          <button 
-            onClick={() => setFilter('active')}
-            className={`flex-1 py-2 text-sm font-medium rounded-lg transition-colors ${filter === 'active' ? 'bg-orange-100 text-orange-700 border border-orange-200' : 'text-gray-500 hover:bg-gray-50'}`}
-          >
-            Em Aberto
-          </button>
-          <button 
-             onClick={() => setFilter('all')}
-             className={`flex-1 py-2 text-sm font-medium rounded-lg transition-colors ${filter === 'all' ? 'bg-orange-100 text-orange-700 border border-orange-200' : 'text-gray-500 hover:bg-gray-50'}`}
-          >
-            Todos os Pedidos
-          </button>
-        </div>
-
-        {/* Orders List */}
-        <div className="flex-grow overflow-y-auto p-4 space-y-4">
-          {filteredOrders.length === 0 ? (
-            <div className="text-center py-10 text-gray-400">
-              <p>Nenhum pedido encontrado.</p>
-            </div>
-          ) : (
-            filteredOrders.map(order => {
-              const subtotal = order.items.reduce((acc, item) => acc + (item.price * item.quantity), 0);
-              const createdAtDate = new Date(order.createdAt);
-              const isEditingAddr = editingAddressId === order.id;
-              const hasFullAddress = order.userStreet && order.userNumber && order.userDistrict;
-              
-              // SECURITY CHECK: Lock Editing for Vendors if status is Advanced
-              const isLockedForEditing = !currentUser?.isAdmin && 
-                  ['preparacao', 'transporte', 'entregue', 'devolucao'].includes(order.status);
-
-              return (
-                <div key={order.id} className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-                  {/* Card Header */}
-                  <div className="p-4 border-b border-gray-100 bg-gray-50 flex justify-between items-start">
-                    <div>
-                      <h3 className="font-bold text-gray-800">{order.userName}</h3>
-                      <p className="text-xs text-gray-500">
-                        #{order.id.slice(-6)} • {createdAtDate.toLocaleDateString()}
-                      </p>
-                    </div>
-                    
-                    {/* Status Dropdown */}
-                    <div className="flex flex-col items-end gap-1">
-                        <select 
-                            value={order.status}
-                            onChange={(e) => handleStatusChange(order, e.target.value as OrderStatus)}
-                            disabled={isLockedForEditing}
-                            className={`text-[10px] font-bold uppercase py-1 px-2 rounded border-none outline-none cursor-pointer ${STATUS_COLORS[order.status]} ${isLockedForEditing ? 'opacity-70 cursor-not-allowed' : ''}`}
-                        >
-                            {Object.entries(STATUS_LABELS).map(([key, label]) => (
-                                <option key={key} value={key}>{label}</option>
-                            ))}
-                        </select>
-                    </div>
-                  </div>
-                  
-                  {/* Address Section */}
-                  <div className="px-4 py-3 border-b border-gray-50 bg-orange-50/30">
-                      {!isEditingAddr ? (
-                          <div className="flex justify-between items-start">
-                              <div className="text-xs text-gray-600 flex-1">
-                                  <div className="flex items-center gap-1 mb-1">
-                                      <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 text-orange-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                                      </svg>
-                                      <p className="font-bold text-gray-500 uppercase text-[10px]">Endereço de Entrega</p>
-                                  </div>
-                                  
-                                  {order.userStreet ? (
-                                      <div className="ml-4">
-                                          <p className="font-medium text-gray-800">{order.userStreet}, {order.userNumber}</p>
-                                          {order.userComplement && <p className="text-[10px] text-gray-500">Comp: {order.userComplement}</p>}
-                                          <p>{order.userDistrict} - {order.userCity}</p>
-                                          <p className="text-gray-400">CEP: {order.userCep}</p>
-                                      </div>
-                                  ) : (
-                                      <div className="ml-4 text-orange-700 italic bg-orange-100 inline-block px-2 py-1 rounded">
-                                          ⚠️ Endereço incompleto ou não informado.
-                                      </div>
-                                  )}
-                              </div>
-                              <button 
-                                onClick={() => startEditingAddress(order)}
-                                disabled={isLockedForEditing}
-                                className={`text-orange-600 bg-white border border-orange-200 hover:bg-orange-50 text-xs font-bold px-3 py-1 rounded transition-colors ${isLockedForEditing ? 'opacity-50 cursor-not-allowed' : ''}`}
-                              >
-                                  {order.userStreet ? 'Alterar' : 'Definir Endereço'}
-                              </button>
-                          </div>
-                      ) : (
-                          <div className="space-y-3 bg-zinc-900 p-4 rounded-xl border border-zinc-700 shadow-xl animate-fade-in relative overflow-hidden">
-                              <div className="flex justify-between items-center mb-1">
-                                  <p className="text-xs font-bold text-white uppercase flex items-center gap-1">
-                                      📍 Editando Endereço
-                                  </p>
-                                  {loadingAddress && <span className="text-[10px] text-orange-400 animate-pulse">Buscando CEP...</span>}
-                              </div>
-                              
-                              <div className="grid grid-cols-3 gap-2">
-                                  <div className="col-span-1">
-                                      <label className="text-[10px] text-gray-400 font-bold mb-1 block">CEP</label>
-                                      <input 
-                                        placeholder="00000-000" 
-                                        className="w-full bg-zinc-800 border border-zinc-600 p-2 text-xs rounded text-white placeholder-gray-500 focus:border-orange-500 outline-none transition-colors"
-                                        value={addressForm.cep}
-                                        onChange={e => setAddressForm({...addressForm, cep: e.target.value})}
-                                        onBlur={handleCepBlur}
-                                      />
-                                  </div>
-                                  <div className="col-span-2">
-                                      <label className="text-[10px] text-gray-400 font-bold mb-1 block">Cidade</label>
-                                      <input 
-                                        placeholder="Cidade" 
-                                        className="w-full bg-zinc-950 border border-zinc-800 p-2 text-xs rounded text-gray-500 font-medium"
-                                        value={addressForm.city}
-                                        readOnly
-                                      />
-                                  </div>
-                              </div>
-
-                              <div>
-                                  <label className="text-[10px] text-gray-400 font-bold mb-1 block">Rua</label>
-                                  <input 
-                                    placeholder="Nome da Rua" 
-                                    className="w-full bg-zinc-800 border border-zinc-600 p-2 text-xs rounded text-white placeholder-gray-500 focus:border-orange-500 outline-none transition-colors"
-                                    value={addressForm.street}
-                                    onChange={e => setAddressForm({...addressForm, street: e.target.value})}
-                                  />
-                              </div>
-
-                              <div className="grid grid-cols-3 gap-2">
-                                  <div className="col-span-1">
-                                      <label className="text-[10px] text-gray-400 font-bold mb-1 block">Número</label>
-                                      <input 
-                                        placeholder="Nº" 
-                                        className="w-full bg-zinc-800 border border-zinc-600 p-2 text-xs rounded text-white placeholder-gray-500 focus:border-orange-500 outline-none transition-colors"
-                                        value={addressForm.number}
-                                        onChange={e => setAddressForm({...addressForm, number: e.target.value})}
-                                      />
-                                  </div>
-                                  <div className="col-span-2">
-                                      <label className="text-[10px] text-gray-400 font-bold mb-1 block">Bairro</label>
-                                      <input 
-                                        placeholder="Bairro" 
-                                        className="w-full bg-zinc-800 border border-zinc-600 p-2 text-xs rounded text-white placeholder-gray-500 focus:border-orange-500 outline-none transition-colors"
-                                        value={addressForm.district}
-                                        onChange={e => setAddressForm({...addressForm, district: e.target.value})}
-                                      />
-                                  </div>
-                              </div>
-
-                              <div>
-                                  <label className="text-[10px] text-gray-400 font-bold mb-1 block">Complemento</label>
-                                  <input 
-                                    placeholder="Apto, Bloco..." 
-                                    className="w-full bg-zinc-800 border border-zinc-600 p-2 text-xs rounded text-white placeholder-gray-500 focus:border-orange-500 outline-none transition-colors"
-                                    value={addressForm.complement}
-                                    onChange={e => setAddressForm({...addressForm, complement: e.target.value})}
-                                  />
-                              </div>
-
-                              <div className="flex justify-end gap-2 pt-3 border-t border-zinc-800">
-                                  <button onClick={cancelEditingAddress} className="text-xs text-gray-400 hover:text-white px-2">Cancelar</button>
-                                  <button onClick={() => saveAddress(order)} className="text-xs bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded font-bold shadow-lg shadow-orange-900/20">
-                                      Salvar Endereço
-                                  </button>
-                              </div>
-                          </div>
-                      )}
-                  </div>
-
-                  {/* Items Summary */}
-                  <div className="p-4">
-                    <div className="space-y-2 mb-4">
-                      {order.items.map((item, idx) => (
-                        <div key={idx} className="flex justify-between text-sm text-gray-600">
-                          <span>{item.quantity}x {item.name}</span>
-                          <span>R$ {(item.price * item.quantity).toFixed(2)}</span>
-                        </div>
-                      ))}
-                    </div>
-
-                    <div className="flex justify-end gap-3 mb-4">
-                       <button 
-                         onClick={() => setPreviewOrder(order)}
-                         className="text-xs font-bold text-gray-500 hover:text-gray-800 flex items-center gap-1 bg-gray-100 px-3 py-1.5 rounded-full"
-                       >
-                         Imprimir
-                       </button>
-
-                       {(order.status === 'orcamento' && !isLockedForEditing) && (
-                           <button 
-                             onClick={() => onEditItems(order)}
-                             className="text-xs font-bold text-blue-600 hover:text-blue-800 hover:bg-blue-50 px-3 py-1.5 rounded-full flex items-center gap-1 transition-colors"
-                           >
-                             Editar Itens
-                           </button>
-                       )}
-                    </div>
-
-                    {/* Financials & Shipping Controls */}
-                    <div className="bg-gray-50 p-3 rounded-lg space-y-3">
-                      <div className="flex justify-between text-sm text-gray-500">
-                        <span>Subtotal</span>
-                        <span>R$ {subtotal.toFixed(2)}</span>
-                      </div>
-                      
-                      {/* Fees Toggles */}
-                      <div className="flex gap-4">
-                          <label className={`flex items-center gap-1 ${isLockedForEditing ? 'opacity-50' : 'cursor-pointer'}`}>
-                              <input 
-                                type="checkbox" 
-                                disabled={isLockedForEditing}
-                                checked={!!order.wantsInvoice}
-                                onChange={() => handleToggleFee(order, 'invoice')}
-                                className="rounded text-orange-600 focus:ring-orange-500"
-                              />
-                              <span className="text-xs text-gray-600">Nota Fiscal (+6%)</span>
-                          </label>
-                          <label className={`flex items-center gap-1 ${isLockedForEditing ? 'opacity-50' : 'cursor-pointer'}`}>
-                              <input 
-                                type="checkbox" 
-                                disabled={isLockedForEditing}
-                                checked={!!order.wantsInsurance}
-                                onChange={() => handleToggleFee(order, 'insurance')}
-                                className="rounded text-orange-600 focus:ring-orange-500"
-                              />
-                              <span className="text-xs text-gray-600">Seguro (+3%)</span>
-                          </label>
-                      </div>
-
-                      {/* Discount Input */}
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm text-gray-500">Desconto (-)</span>
-                        <div className="flex items-center gap-1 w-24">
-                          <span className="text-gray-400 text-xs">R$</span>
-                          <input 
-                            type="number"
-                            step="0.01"
-                            disabled={isLockedForEditing}
-                            className={`w-full bg-white border border-gray-300 rounded px-2 py-1 text-right text-sm outline-none focus:border-orange-500 text-red-500 font-medium ${isLockedForEditing ? 'bg-gray-100 text-gray-400' : ''}`}
-                            placeholder="0,00"
-                            value={localDiscounts[order.id] !== undefined ? localDiscounts[order.id] : (order.discount || '')}
-                            onChange={(e) => handleDiscountChange(order.id, e.target.value)}
-                            onBlur={() => handleDiscountBlur(order)}
-                          />
-                        </div>
-                      </div>
-
-                      {/* Shipping Controls */}
-                      <div className="border-t border-gray-200 pt-2 space-y-2">
-                          <div className="flex justify-between items-center">
-                            <span className="text-sm text-gray-500">Forma de Envio</span>
-                            <select 
-                                value={order.shippingMethod || ''}
-                                disabled={isLockedForEditing}
-                                onChange={(e) => handleShippingMethodChange(order, e.target.value)}
-                                className={`bg-white border border-gray-300 rounded px-2 py-1 text-xs outline-none focus:border-indigo-500 w-32 ${isLockedForEditing ? 'bg-gray-100 text-gray-400' : ''}`}
-                            >
-                                <option value="">Selecione...</option>
-                                <option value="Motoboy">Motoboy</option>
-                                <option value="Correios">Correios</option>
-                                <option value="Transportadora">Transportadora</option>
-                                <option value="Retirada">Retirada</option>
-                            </select>
-                          </div>
-                          
-                          <div className="flex justify-between items-center">
-                            <span className="text-sm text-gray-500">Frete (+)</span>
-                            <div className="flex items-center gap-1 w-24">
-                              <span className="text-gray-400 text-xs">R$</span>
-                              <input 
-                                type="number"
-                                step="0.01"
-                                disabled={isLockedForEditing}
-                                className={`w-full bg-white border border-gray-300 rounded px-2 py-1 text-right text-sm outline-none focus:border-indigo-500 text-indigo-600 font-medium ${isLockedForEditing ? 'bg-gray-100 text-gray-400' : ''}`}
-                                placeholder="0,00"
-                                value={localShippingCosts[order.id] !== undefined ? localShippingCosts[order.id] : (order.shippingCost || '')}
-                                onChange={(e) => handleShippingCostChange(order.id, e.target.value)}
-                                onBlur={() => handleShippingCostBlur(order)}
-                              />
-                            </div>
-                          </div>
-                      </div>
-
-                      <div className="flex justify-between text-lg font-bold text-gray-900 border-t border-gray-200 pt-2 mt-2">
-                        <span>Total Final</span>
-                        <span>{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(order.total)}</span>
-                      </div>
-
-                      {/* Finalize Button */}
-                      {order.status === 'orcamento' && (
-                          <div className="pt-2">
-                              {!hasFullAddress && (
-                                  <p className="text-xs text-red-500 text-center mb-2 font-medium">⚠️ Preencha o endereço acima antes de finalizar.</p>
-                              )}
-                              <Button 
-                                onClick={() => handleFinalizeOrder(order)}
-                                className={`w-full !py-3 shadow-lg ${!hasFullAddress ? '!bg-gray-400 cursor-not-allowed hover:!bg-gray-400' : '!bg-green-600 hover:!bg-green-700'}`}
-                                disabled={!hasFullAddress || isLockedForEditing}
-                              >
-                                {hasFullAddress ? '✅ Finalizar e Enviar Pedido' : 'Preencha o Endereço'}
-                              </Button>
-                          </div>
-                      )}
-                    </div>
-                  </div>
+        {/* Orders Grid */}
+        <div className="flex-grow overflow-y-auto">
+            {displayedOrders.length === 0 ? (
+                <div className="text-center py-20 text-gray-400">
+                   <p className="text-xl font-medium">Nenhum pedido encontrado.</p>
                 </div>
-              );
-            })
-          )}
+            ) : (
+                <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+                   {displayedOrders.map(order => (
+                       <div key={order.id} className="border border-gray-200 rounded-xl bg-white shadow-sm hover:shadow-md transition-shadow overflow-hidden flex flex-col">
+                           {/* Order Header */}
+                           <div className="bg-gray-50 px-4 py-3 border-b border-gray-100 flex justify-between items-center">
+                               <div>
+                                   <div className="flex items-center gap-2">
+                                       <span className="font-bold text-gray-800">#{order.id.slice(-6)}</span>
+                                       <span className={`text-[10px] px-2 py-0.5 rounded font-bold uppercase ${STATUS_COLORS[order.status]}`}>
+                                           {STATUS_LABELS[order.status]}
+                                       </span>
+                                   </div>
+                                   <p className="text-xs text-gray-500 mt-1">
+                                       {new Date(order.createdAt).toLocaleString()}
+                                   </p>
+                               </div>
+                               <div className="text-right">
+                                   <p className="font-bold text-lg text-gray-900">
+                                       {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(order.total)}
+                                   </p>
+                                   <button 
+                                     onClick={() => setPreviewOrder(order)}
+                                     className="text-xs text-blue-600 hover:underline font-medium"
+                                   >
+                                     Imprimir Recibo
+                                   </button>
+                               </div>
+                           </div>
+                           
+                           {/* Order Body */}
+                           <div className="p-4 flex-grow flex flex-col md:flex-row gap-4">
+                               {/* Left: Customer & Items */}
+                               <div className="flex-1">
+                                   <div className="mb-3">
+                                       <p className="font-bold text-gray-800">{order.userName}</p>
+                                       <a href={`tel:${order.userPhone}`} className="text-xs text-gray-500 hover:text-blue-500 block">{order.userPhone}</a>
+                                       
+                                       {/* Address Editor */}
+                                       {editingAddressId === order.id ? (
+                                           <div className="mt-2 bg-yellow-50 p-2 rounded border border-yellow-200 text-xs">
+                                               <p className="font-bold text-yellow-700 mb-1">Editar Endereço</p>
+                                               <div className="grid grid-cols-2 gap-2 mb-2">
+                                                   <input placeholder="CEP" value={addressForm.cep} onChange={e => setAddressForm({...addressForm, cep: e.target.value})} onBlur={handleCepBlur} className="border p-1 rounded w-full" />
+                                                   <input placeholder="Cidade" value={addressForm.city} readOnly className="border p-1 rounded w-full bg-gray-100" />
+                                                   <input placeholder="Rua" value={addressForm.street} onChange={e => setAddressForm({...addressForm, street: e.target.value})} className="border p-1 rounded w-full col-span-2" />
+                                                   <input placeholder="Número" value={addressForm.number} onChange={e => setAddressForm({...addressForm, number: e.target.value})} className="border p-1 rounded w-full" />
+                                                   <input placeholder="Bairro" value={addressForm.district} onChange={e => setAddressForm({...addressForm, district: e.target.value})} className="border p-1 rounded w-full" />
+                                               </div>
+                                               <div className="flex justify-end gap-2">
+                                                   <button onClick={cancelEditingAddress} className="text-gray-500">Cancelar</button>
+                                                   <button onClick={() => saveAddress(order)} className="bg-yellow-600 text-white px-2 py-1 rounded font-bold">Salvar</button>
+                                               </div>
+                                           </div>
+                                       ) : (
+                                           <div className="text-xs text-gray-500 mt-1 flex items-start gap-1 group">
+                                               <span>📍</span>
+                                               <span className="flex-grow">
+                                                   {order.userStreet ? `${order.userStreet}, ${order.userNumber}` : (order.userCity || 'Sem endereço')}
+                                                   {order.userDistrict && ` - ${order.userDistrict}`}
+                                               </span>
+                                               <button onClick={() => startEditingAddress(order)} className="opacity-0 group-hover:opacity-100 text-blue-500 hover:text-blue-700 font-bold ml-1">✎</button>
+                                           </div>
+                                       )}
+                                   </div>
+
+                                   <div className="border-t border-gray-100 pt-2 max-h-32 overflow-y-auto">
+                                       {order.items.map((item, i) => (
+                                           <div key={i} className="flex justify-between text-xs py-1 border-b border-gray-50 last:border-0">
+                                               <span className="text-gray-700">
+                                                   <span className="font-bold">{item.quantity}x</span> {item.name}
+                                               </span>
+                                               <span className="text-gray-500 font-medium">
+                                                   R$ {(item.price * item.quantity).toFixed(2)}
+                                               </span>
+                                           </div>
+                                       ))}
+                                   </div>
+                                   <div className="mt-2 text-right">
+                                       <button onClick={() => onEditItems(order)} className="text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-1 rounded-full font-bold transition-colors">
+                                           ✏️ Editar Itens
+                                       </button>
+                                   </div>
+                               </div>
+
+                               {/* Right: Actions & Finances */}
+                               <div className="w-full md:w-64 bg-gray-50 rounded-lg p-3 border border-gray-200 flex flex-col justify-between">
+                                   <div className="space-y-3">
+                                       {/* Shipping Control */}
+                                       <div>
+                                           <label className="text-[10px] font-bold text-gray-400 uppercase block mb-1">Envio</label>
+                                           <div className="flex gap-2 mb-1">
+                                               <select 
+                                                 className="text-xs border border-gray-300 rounded p-1 w-full bg-white"
+                                                 value={order.shippingMethod || ''}
+                                                 onChange={e => handleShippingMethodChange(order, e.target.value)}
+                                               >
+                                                   <option value="">Selecione...</option>
+                                                   <option value="Motoboy">Motoboy</option>
+                                                   <option value="Correios">Correios</option>
+                                                   <option value="Transportadora">Transportadora</option>
+                                                   <option value="Retirada">Retirada</option>
+                                               </select>
+                                           </div>
+                                           <div className="flex items-center gap-1">
+                                               <span className="text-xs text-gray-500">R$</span>
+                                               <input 
+                                                 type="number"
+                                                 className="w-full text-xs border border-gray-300 rounded p-1"
+                                                 value={localShippingCosts[order.id] !== undefined ? localShippingCosts[order.id] : order.shippingCost || 0}
+                                                 onChange={e => handleShippingCostChange(order.id, e.target.value)}
+                                                 onBlur={() => handleShippingCostBlur(order)}
+                                                 placeholder="Custo"
+                                               />
+                                           </div>
+                                       </div>
+
+                                       {/* Discount Control */}
+                                       <div>
+                                            <label className="text-[10px] font-bold text-gray-400 uppercase block mb-1">Desconto</label>
+                                            <div className="flex items-center gap-1">
+                                               <span className="text-xs text-red-500">- R$</span>
+                                               <input 
+                                                 type="number"
+                                                 className="w-full text-xs border border-gray-300 rounded p-1 text-red-600 font-bold"
+                                                 value={localDiscounts[order.id] !== undefined ? localDiscounts[order.id] : order.discount || 0}
+                                                 onChange={e => handleDiscountChange(order.id, e.target.value)}
+                                                 onBlur={() => handleDiscountBlur(order)}
+                                               />
+                                            </div>
+                                       </div>
+
+                                       {/* Fees Toggles */}
+                                       <div className="flex gap-2">
+                                           <button 
+                                              onClick={() => handleToggleFee(order, 'invoice')}
+                                              className={`flex-1 text-[10px] py-1 rounded border font-bold ${order.wantsInvoice ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-500 border-gray-300'}`}
+                                           >
+                                               Nota (+6%)
+                                           </button>
+                                           <button 
+                                              onClick={() => handleToggleFee(order, 'insurance')}
+                                              className={`flex-1 text-[10px] py-1 rounded border font-bold ${order.wantsInsurance ? 'bg-green-600 text-white border-green-600' : 'bg-white text-gray-500 border-gray-300'}`}
+                                           >
+                                               Seguro (+3%)
+                                           </button>
+                                       </div>
+                                   </div>
+
+                                   {/* Status Actions */}
+                                   <div className="mt-4 pt-4 border-t border-gray-200 grid grid-cols-1 gap-2">
+                                       <Button 
+                                         onClick={() => handleFinalizeOrder(order)}
+                                         className="w-full !py-2 !text-xs !bg-green-600 hover:!bg-green-700 flex justify-center items-center gap-2"
+                                       >
+                                           <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                           </svg>
+                                           Enviar Confirmação
+                                       </Button>
+                                       
+                                       <div className="flex gap-1">
+                                           <button 
+                                             onClick={() => handleStatusChange(order, 'cancelado')}
+                                             className="flex-1 bg-red-100 hover:bg-red-200 text-red-700 text-[10px] font-bold py-2 rounded"
+                                           >
+                                               Cancelar
+                                           </button>
+                                            <button 
+                                             onClick={() => handleStatusChange(order, 'devolucao')}
+                                             className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 text-[10px] font-bold py-2 rounded"
+                                           >
+                                               Devolução
+                                           </button>
+                                       </div>
+                                   </div>
+                               </div>
+                           </div>
+                       </div>
+                   ))}
+                </div>
+            )}
         </div>
       </div>
-      
-      {/* Print Preview Modal */}
+
       <PrintPreviewModal 
-        isOpen={!!previewOrder}
-        onClose={() => setPreviewOrder(null)}
-        order={previewOrder}
+        isOpen={!!previewOrder} 
+        onClose={() => setPreviewOrder(null)} 
+        order={previewOrder} 
         settings={settings}
         logo={logo}
+        isAdmin={true}
       />
-    </>
+    </div>
   );
 };

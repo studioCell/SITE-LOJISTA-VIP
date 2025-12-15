@@ -269,6 +269,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   
   const [filterCategory, setFilterCategory] = useState<string>('all');
+  const [productSearchTerm, setProductSearchTerm] = useState(''); // New state for product search
   const [selectedProductIds, setSelectedProductIds] = useState<Set<string>>(new Set());
   const [notification, setNotification] = useState<string | null>(null);
 
@@ -286,7 +287,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   const [logoUrl, setLogoUrl] = useState('');
 
   const [orderStatusFilter, setOrderStatusFilter] = useState<OrderStatus | 'all'>('all');
-  const [orderSearchTerm, setOrderSearchTerm] = useState(''); // Added Search Term
+  const [orderSearchTerm, setOrderSearchTerm] = useState(''); 
   const [previewOrder, setPreviewOrder] = useState<Order | null>(null);
   const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
   const [trackingInput, setTrackingInput] = useState<Record<string, string>>({});
@@ -363,7 +364,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   });
 
   const displayedProducts = products.filter(p => 
-      filterCategory === 'all' || p.category === filterCategory
+      (filterCategory === 'all' || p.category === filterCategory) &&
+      (productSearchTerm === '' || p.name.toLowerCase().includes(productSearchTerm.toLowerCase()))
   );
 
   // --- DASHBOARD DATA CALCULATION ---
@@ -481,7 +483,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                 </td>
                 <td style="padding: 8px;">${itemsList}</td>
                 <td style="padding: 8px; text-align: right;">${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(o.total)}</td>
-                <td style="padding: 8px; font-size: 10px; text-transform: uppercase;">${STATUS_LABELS[o.status]}</td>
+                <td style="padding: 8px; font-size: 10px; text-transform: uppercase;">${STATUS_LABELS[o.status] || o.status}</td>
             </tr>
           `;
       }).join('');
@@ -675,7 +677,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   };
 
   // Order Action Handlers
-  const handleStatusChange = async (order: Order, newStatus: OrderStatus) => { try { const history = [...(order.history || []), { status: newStatus, timestamp: Date.now() }]; await updateOrder({ ...order, status: newStatus, history }); showNotification(`Status alterado: ${STATUS_LABELS[newStatus]}`); } catch (e) { alert("Erro status"); } };
+  const handleStatusChange = async (order: Order, newStatus: OrderStatus) => { try { const history = [...(order.history || []), { status: newStatus, timestamp: Date.now() }]; await updateOrder({ ...order, status: newStatus, history }); showNotification(`Status alterado: ${STATUS_LABELS[newStatus]}`); } catch (e: any) { alert("Erro status"); } };
   const handleFinalizeSale = async (order: Order) => { if (order.status !== 'orcamento') return; await handleStatusChange(order, 'pagamento_pendente'); };
   const handleConfirmPayment = async (order: Order) => { if (order.status !== 'pagamento_pendente') return; await handleStatusChange(order, 'preparacao'); };
   const handleSendBudgetWhatsapp = (order: Order) => { const msg = encodeURIComponent(`Orçamento #${order.id.slice(-6)} para ${order.userName}`); window.open(`https://api.whatsapp.com/send?phone=55${order.userPhone.replace(/\D/g, '')}&text=${msg}`, '_blank'); };
@@ -686,13 +688,43 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   const handleMarkDelivered = async (order: Order) => { await updateOrder({ ...order, status: 'entregue', history: [...(order.history||[]), {status:'entregue', timestamp:Date.now()}] }); showNotification('Entregue!'); setOrderStatusFilter('entregue'); };
   
   // Entity Handlers
-  const handleRegisterVendor = async () => { if (!newVendorName || !newVendorPhone || !newVendorPass) return; const res = await registerVendor(newVendorName, newVendorPhone, newVendorPass); showNotification(res.message); if (res.success) { setNewVendorName(''); setNewVendorPhone(''); setNewVendorPass(''); } };
+  const handleRegisterVendor = async () => { 
+    if (!newVendorName || !newVendorPhone || !newVendorPass) return; 
+    
+    try {
+        const res = await registerVendor(newVendorName, newVendorPhone, newVendorPass);
+        const response = res as { success: boolean; message: string }; // Explicit typing
+        
+        const msg = response?.message ? String(response.message) : 'Operação realizada';
+        showNotification(msg);
+        
+        if (response?.success) { 
+            setNewVendorName(''); 
+            setNewVendorPhone(''); 
+            setNewVendorPass(''); 
+        }
+    } catch(e: any) {
+        // Ensure error message is string and handle unknown error object
+        const errMsg = (e?.message) ? String(e.message) : 'Erro desconhecido';
+        showNotification(errMsg);
+    }
+  };
+
   const handleUpdateClient = async (updatedUser: User) => { if (!updatedUser) return; await updateUser(updatedUser); setEditingUser(null); showNotification('Atualizado!'); };
   const handlePasswordUpdate = async (userId: string) => { const newPass = passwordInput[userId]; if (!newPass || newPass.length < 6) return alert("Senha min 6 digitos"); await updateUserPassword(userId, newPass); setPasswordInput(prev => ({...prev, [userId]: ''})); showNotification("Senha alterada!"); };
   const handleSaveSettings = async () => { await saveShopSettings(settings); if (logoUrl) await saveLogo(logoUrl); showNotification('Configurações salvas!'); };
   const handleFormSave = (product: Product | Omit<Product, 'id'>) => { if ('id' in product) onUpdateProduct(product as Product); else onAddProduct(product); setIsFormOpen(false); setEditingProduct(null); showNotification('Produto salvo!'); };
   const handleAddCategory = async () => { if (!newCategoryName.trim()) return; await addCategory(newCategoryName); setNewCategoryName(''); showNotification('Categoria criada!'); };
-  const handleRecoverCart = (user: User) => { const msg = encodeURIComponent(`Olá ${user.name}, recupere seu carrinho!`); window.open(`https://api.whatsapp.com/send?phone=55${user.phone?.replace(/\D/g, '')}&text=${msg}`, '_blank'); };
+  const handleRecoverCart = (user: User) => { 
+      const phone = user.phone;
+      if (!phone || typeof phone !== 'string') {
+          showNotification("Cliente sem telefone cadastrado.");
+          return;
+      }
+      const name = user.name || 'Cliente';
+      const msg = encodeURIComponent(`Olá ${name}, recupere seu carrinho!`); 
+      window.open(`https://api.whatsapp.com/send?phone=55${phone.replace(/\D/g, '')}&text=${msg}`, '_blank'); 
+  };
 
   return (
     <div className="bg-gray-100 rounded-xl shadow-sm border border-gray-200 overflow-hidden min-h-[600px] relative">
@@ -708,7 +740,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
       <div className="flex border-b border-gray-100 overflow-x-auto bg-zinc-900 text-white scrollbar-hide">
         {[{ id: 'dashboard', label: '📊 Dashboard', show: true }, { id: 'orders', label: '💰 Minhas Vendas', show: true }, { id: 'products', label: '📦 Produtos', show: !isVendor }, { id: 'clients', label: '👥 Clientes', show: !isVendor }, { id: 'vendors', label: '👔 Vendedores', show: !isVendor }, { id: 'abandoned', label: '🛒 Carrinhos Abandonados', show: !isVendor }, { id: 'settings', label: '⚙️ Configurações', show: !isVendor }].filter(t => t.show).map(tab => (
-            <button key={tab.id} onClick={() => setActiveTab(tab.id as any)} className={`flex-shrink-0 py-4 px-6 text-sm font-bold border-b-4 transition-colors whitespace-nowrap ${activeTab === tab.id ? 'border-orange-500 text-orange-500' : 'border-transparent text-gray-400 hover:text-white'}`}>{tab.label}</button>
+            <button key={tab.id} onClick={() => setActiveTab(tab.id as typeof activeTab)} className={`flex-shrink-0 py-4 px-6 text-sm font-bold border-b-4 transition-colors whitespace-nowrap ${activeTab === tab.id ? 'border-orange-500 text-orange-500' : 'border-transparent text-gray-400 hover:text-white'}`}>{tab.label}</button>
         ))}
       </div>
       <div className="p-6">
@@ -826,7 +858,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                         {['all', 'orcamento', 'pagamento_pendente', 'preparacao', 'transporte', 'entregue'].map(status => (
                             <button 
                                 key={status} 
-                                onClick={() => setOrderStatusFilter(status as any)} 
+                                onClick={() => setOrderStatusFilter(status as OrderStatus | 'all')} 
                                 className={`px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-colors border ${orderStatusFilter === status ? 'bg-zinc-800 text-white border-zinc-800' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'}`}
                             >
                                 {status === 'all' ? 'Todos' : STATUS_LABELS[status]}
@@ -906,9 +938,35 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                    <div className="bg-zinc-800 p-4 rounded-xl border border-zinc-700 text-white"><p className="text-xs text-orange-400 uppercase font-bold">Categorias</p><p className="text-2xl font-bold">{Object.keys(categoryCounts).length}</p></div>
                </div>
                <div className="bg-zinc-900 p-4 rounded-xl border border-zinc-800">
-                   <div className="flex justify-between items-center gap-4 mb-4">
-                       <select value={filterCategory} onChange={(e) => setFilterCategory(e.target.value)} className="bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white focus:ring-2 focus:ring-orange-600 focus:border-transparent outline-none"><option value="all">Todas as Categorias</option>{categories.map(cat => <option key={cat.id} value={cat.name}>{cat.name}</option>)}</select>
-                       <div className="flex gap-2">{selectedProductIds.size > 0 && <button onClick={handleBulkDelete} className="bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-bold">Excluir ({selectedProductIds.size})</button>}<Button onClick={() => { setEditingProduct(null); setIsFormOpen(true); }} className="!bg-orange-600 !text-sm">+ Novo Produto</Button></div>
+                   <div className="flex flex-col md:flex-row justify-between items-center gap-4 mb-4">
+                       <div className="flex gap-2 w-full md:w-auto">
+                           {/* Category Select */}
+                           <select value={filterCategory} onChange={(e) => setFilterCategory(e.target.value)} className="bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white focus:ring-2 focus:ring-orange-600 focus:border-transparent outline-none">
+                               <option value="all">Todas as Categorias</option>
+                               {categories.map(cat => <option key={cat.id} value={cat.name}>{cat.name}</option>)}
+                           </select>
+                           
+                           {/* Search Input */}
+                           <div className="relative flex-grow">
+                               <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                                   <svg className="w-4 h-4 text-gray-400" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 20 20">
+                                       <path stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="m19 19-4-4m0-7A7 7 0 1 1 1 8a7 7 0 0 1 14 0Z"/>
+                                   </svg>
+                               </div>
+                               <input 
+                                   type="text" 
+                                   placeholder="Nome do produto..." 
+                                   value={productSearchTerm}
+                                   onChange={(e) => setProductSearchTerm(e.target.value)}
+                                   className="w-full bg-zinc-800 border border-zinc-700 text-white text-sm rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent block pl-10 p-2 outline-none placeholder-gray-500"
+                               />
+                           </div>
+                       </div>
+
+                       <div className="flex gap-2 w-full md:w-auto justify-end">
+                           {selectedProductIds.size > 0 && <button onClick={handleBulkDelete} className="bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-bold">Excluir ({selectedProductIds.size})</button>}
+                           <Button onClick={() => { setEditingProduct(null); setIsFormOpen(true); }} className="!bg-orange-600 !text-sm whitespace-nowrap">+ Novo Produto</Button>
+                       </div>
                    </div>
                    <div className="mt-4 pt-4 border-t border-zinc-800 flex flex-wrap gap-2 items-center">
                        <input type="text" placeholder="Nova categoria..." className="bg-zinc-800 border border-zinc-700 text-white rounded-lg px-3 py-1.5 text-sm outline-none focus:border-orange-500 placeholder-gray-400" value={newCategoryName} onChange={(e) => setNewCategoryName(e.target.value)} />

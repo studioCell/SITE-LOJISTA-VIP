@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Product, CartItem, Story, User, ShopSettings, Order, Category } from './types';
 import { 
   subscribeToProducts,
@@ -64,8 +64,16 @@ function App() {
   const [heroImageError, setHeroImageError] = useState(false);
   const [logo, setLogo] = useState<string>('');
   
-  // File Input Ref for Hero Image
+  // Filtering & Sorting State
+  const [searchTerm, setSearchTerm] = useState('');
+  const [sortBy, setSortBy] = useState<'default' | 'price_asc' | 'price_desc' | 'views' | 'newest'>('default');
+  
+  // Transition State (White Screen Delay)
+  const [isTransitioning, setIsTransitioning] = useState(false);
+  
+  // References
   const heroFileInputRef = useRef<HTMLInputElement>(null);
+  const productAnchorRef = useRef<HTMLDivElement>(null); // Anchor for scrolling
 
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
@@ -171,6 +179,23 @@ function App() {
     setHeroImageError(false);
   }, [heroImage]);
 
+  // HELPER: Perform a Transition (Delay + Scroll)
+  const performTransition = (action: () => void) => {
+    setIsTransitioning(true);
+    
+    // Scroll immediately to product area so when the "curtain" lifts, we are there
+    if (productAnchorRef.current) {
+        // Offset for header
+        const y = productAnchorRef.current.getBoundingClientRect().top + window.scrollY - 100;
+        window.scrollTo({ top: y, behavior: 'smooth' });
+    }
+
+    setTimeout(() => {
+        action();
+        setIsTransitioning(false);
+    }, 2000); // 2 Seconds White Screen
+  };
+
   const addToCart = (product: Product, quantity: number = 1, note: string = '') => {
     setCart(prev => {
       const existing = prev.find(item => item.id === product.id);
@@ -268,53 +293,84 @@ function App() {
             setShowOrderSuccess(false);
             
             // Build WA Message
+            const now = new Date();
+            const dateStr = now.toLocaleDateString('pt-BR');
+            const timeStr = now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+
             const lines = cart.map(item => {
-              let line = `- ${item.quantity}x ${item.name}`;
-              line += `\n   (Un: R$ ${item.price.toFixed(2)})`; // Explicit Unit Price
-              if (item.note) line += `\n   Obs: ${item.note}`;
+              const totalItem = item.quantity * item.price;
+              let line = `${item.quantity} . ${item.name} (R$ ${item.price.toFixed(2)}) = R$ ${totalItem.toFixed(2)}`;
+              if (item.note) line += `\n( ${item.note} )`;
               return line;
             });
 
-            let customerInfo = "";
-            if (targetUser) {
-                customerInfo += `\n*Cliente:* ${targetUser.name}`;
-                customerInfo += `\n*Tel:* ${targetUser.phone || 'Não informado'}`;
-                
-                const displayStreet = targetAddress?.street || targetUser.street;
-                const displayNumber = targetAddress?.number || targetUser.number;
-                const displayDistrict = targetAddress?.district || targetUser.district;
-                const displayCity = targetAddress?.city || targetUser.city;
-                const displayCep = targetAddress?.cep || targetUser.cep;
+            let addressBlock = "";
+            const displayStreet = targetAddress?.street || targetUser.street;
+            const displayNumber = targetAddress?.number || targetUser.number;
+            const displayDistrict = targetAddress?.district || targetUser.district;
+            const displayCity = targetAddress?.city || targetUser.city;
+            const displayCep = targetAddress?.cep || targetUser.cep;
+            const displayComp = targetUser.complement;
 
-                if (displayStreet) {
-                    customerInfo += `\n*Endereço:* ${displayStreet}, ${displayNumber || 'S/N'}`;
-                    if(displayDistrict) customerInfo += ` - ${displayDistrict}`;
-                    if(displayCity) customerInfo += `\n${displayCity}`;
-                    if(displayCep) customerInfo += ` (CEP: ${displayCep})`;
-                } else if (displayCity) {
-                    customerInfo += `\n*Endereço:* ${displayCity}`;
-                }
+            if (displayStreet) {
+                addressBlock = `📍 ${displayStreet}, ${displayNumber || 'S/N'}`;
+                if(displayDistrict) addressBlock += ` - ${displayDistrict}`;
+                if(displayComp) addressBlock += ` (${displayComp})`;
+                addressBlock += `\n${displayCity || ''} / ${displayCep || ''}`;
+            } else {
+                addressBlock = `📍 Retirada / A Combinar (${displayCity || 'Cidade não inf.'})`;
             }
 
-            let extraInfo = "";
-            if (extras.wantsInvoice) extraInfo += "\n*Com Nota Fiscal*";
-            if (extras.wantsInsurance) extraInfo += "\n*Com Seguro*";
-            if (extras.shippingMethod) extraInfo += `\n*Envio:* ${extras.shippingMethod}`;
+            // Lógica de Frete e Mensagem Final
+            let shippingInfoText = extras.shippingMethod || "A Combinar";
+            let finalMessage = "Confirma o pedido?";
+
+            switch (extras.shippingMethod) {
+                case 'Retirada':
+                    shippingInfoText = "Retirada (Não é cobrado o frete)";
+                    finalMessage = "Confirma o pedido? Vou te enviar os dados do endereço para retirada.";
+                    break;
+                case 'Correios':
+                    shippingInfoText = "Correios (Vou calcular o frete pra você)";
+                    finalMessage = "Confirma o pedido? Logo mais vou calcular seu frete, me confimar o Cep de envio por gentileza.";
+                    break;
+                case 'Transportadora':
+                    shippingInfoText = "Transportadora (Vou te passar as transportadoras disponíveis e os valores)";
+                    finalMessage = "Confirma o pedido? Logo mais vou calcular seu frete, me confimar o Cep de envio por gentileza.";
+                    break;
+                case 'Motoboy':
+                    shippingInfoText = "Motoboy (Cobrado de 20 a 40 reais dentro de Goiânia)";
+                    finalMessage = "Confirma o pedido? Me envie a localização para que eu possa te passar o valor do motoboy.";
+                    break;
+                default:
+                    finalMessage = "Confirma o pedido?";
+                    break;
+            }
 
             const text = 
-`*Novo Pedido - Lojista Vip*
-----------------------------
-${lines.join('\n')}
-----------------------------
-${extraInfo}
-*Total Estimado: R$ ${total.toFixed(2)}*
-${customerInfo}
+`🧾 PEDIDO – ${targetUser.name.toUpperCase()}
+Cód: #${newOrder.id.slice(-6)}
+Contato: ${targetUser.phone}
 
-*Aguardando cálculo do frete e confirmação...*
-`;
+${addressBlock}
+
+🕒 Data: ${dateStr}
+🕒 Hora: ${timeStr}
+📌 Status: Aguardando aprovação
+
+**📦 PRODUTOS:
+
+${lines.join('\n')}
+
+📦 Envio: ${shippingInfoText}
+
+🔖 DESCONTO: R$ 0.00
+💰 TOTAL DO PEDIDO: *R$ ${total.toFixed(2)}*
+
+${finalMessage}`;
             
             const encodedText = encodeURIComponent(text);
-            const phoneNumber = settings?.contactNumber || '5562992973853';
+            const phoneNumber = '5562992973853'; // Store number
             window.open(`https://api.whatsapp.com/send?phone=${phoneNumber}&text=${encodedText}`, '_blank');
         }, 2500); // 2.5s delay to show success animation
 
@@ -477,29 +533,91 @@ ${customerInfo}
     });
   };
 
+  // Logic to handle filters with delay
   const handleSelectCategory = (cat: string | null) => {
-    setSelectedCategory(cat);
-    setCurrentPage(1); 
-    setView('home');
+    if (cat === selectedCategory) return;
+    performTransition(() => {
+        setSelectedCategory(cat);
+        setCurrentPage(1); 
+        setView('home');
+    });
+  };
+
+  const handleSearchChange = (term: string) => {
+      setSearchTerm(term);
+      setCurrentPage(1);
+  };
+
+  // Delayed Search Execution (Debounce simulation or immediate transition trigger if enter)
+  const handleSearchSubmit = (e?: React.FormEvent) => {
+      e?.preventDefault();
+      performTransition(() => {
+          // Just triggering re-render with visual delay
+      });
+  };
+
+  const handleSortChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+      const val = e.target.value as any;
+      performTransition(() => {
+          setSortBy(val);
+          setCurrentPage(1);
+      });
+  };
+
+  const handlePageChange = (newPage: number) => {
+      performTransition(() => {
+          setCurrentPage(newPage);
+      });
   };
 
   const isStaff = currentUser?.isAdmin || currentUser?.isVendor;
 
-  // --- Filtering Logic ---
-  const availableProducts = products.filter(p => p.available);
-  const promoProducts = availableProducts.filter(p => p.isPromo);
-  
-  let filteredProducts = availableProducts;
+  // --- Filtering & Sorting Logic ---
+  const filteredProducts = useMemo(() => {
+      let result = products.filter(p => p.available);
 
-  if (selectedCategory === 'Novidades da Semana') {
-      filteredProducts = [...availableProducts].sort((a, b) => {
-          const dateA = a.createdAt || 0;
-          const dateB = b.createdAt || 0;
-          return dateB - dateA;
-      });
-  } else if (selectedCategory) {
-      filteredProducts = availableProducts.filter(p => p.category === selectedCategory);
-  }
+      // 1. Filter by Category
+      if (selectedCategory === 'Novidades da Semana') {
+          // This category logic often implies sorting by date too, but let's keep it consistent
+          result = result.filter(p => {
+             const oneWeekAgo = Date.now() - (7 * 24 * 60 * 60 * 1000);
+             return (p.createdAt || 0) > oneWeekAgo;
+          });
+      } else if (selectedCategory) {
+          result = result.filter(p => p.category === selectedCategory);
+      }
+
+      // 2. Filter by Search Term
+      if (searchTerm.trim()) {
+          const lowerTerm = searchTerm.toLowerCase();
+          result = result.filter(p => p.name.toLowerCase().includes(lowerTerm));
+      }
+
+      // 3. Sorting
+      switch (sortBy) {
+          case 'price_asc':
+              result.sort((a, b) => a.price - b.price);
+              break;
+          case 'price_desc':
+              result.sort((a, b) => b.price - a.price);
+              break;
+          case 'views':
+              result.sort((a, b) => (b.views || 0) - (a.views || 0));
+              break;
+          case 'newest':
+              result.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+              break;
+          default:
+              // Default sorting (maybe random or by ID)
+              break;
+      }
+
+      return result;
+  }, [products, selectedCategory, searchTerm, sortBy]);
+
+  const promoProducts = useMemo(() => 
+    products.filter(p => p.available && p.isPromo), 
+  [products]);
 
   const totalPages = Math.ceil(filteredProducts.length / ITEMS_PER_PAGE);
   const displayedProducts = filteredProducts.slice(
@@ -509,8 +627,7 @@ ${customerInfo}
 
   const getRelatedProducts = (current: Product | null) => {
     if (!current) return [];
-    return availableProducts
-      .filter(p => p.category === current.category && p.id !== current.id)
+    return products.filter(p => p.available && p.category === current.category && p.id !== current.id)
       .sort(() => 0.5 - Math.random()) 
       .slice(0, 3);
   };
@@ -531,6 +648,17 @@ ${customerInfo}
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col font-sans relative">
+      
+      {/* WHITE SCREEN TRANSITION OVERLAY */}
+      {isTransitioning && (
+          <div className="fixed inset-0 z-[200] bg-white flex items-center justify-center animate-fade-in">
+              <div className="flex flex-col items-center">
+                  <div className="w-12 h-12 border-4 border-orange-200 border-t-orange-600 rounded-full animate-spin mb-4"></div>
+                  <p className="text-gray-500 font-medium animate-pulse">Carregando produtos...</p>
+              </div>
+          </div>
+      )}
+
       <input 
         type="file" 
         ref={heroFileInputRef}
@@ -592,7 +720,7 @@ ${customerInfo}
              )}
 
              {/* Static Hero Cover (Always shown since carousel is removed) */}
-             {!selectedCategory && (
+             {!selectedCategory && !searchTerm && (
                 <div className="mb-10 rounded-2xl overflow-hidden shadow-lg relative group bg-gray-100 min-h-[100px]">
                   {heroImage && !heroImageError ? (
                     <img 
@@ -627,15 +755,58 @@ ${customerInfo}
              )}
 
              <div className="flex flex-col mb-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-2xl font-bold text-gray-800">Catálogo de Produtos</h2>
-                  <div className="flex gap-2">
-                    <span className="bg-orange-100 text-orange-800 text-xs font-semibold px-2.5 py-0.5 rounded">Lojista Vip</span>
+                
+                {/* --- ANCHOR FOR SCROLL --- */}
+                <div ref={productAnchorRef} className="scroll-mt-32"></div>
+
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
+                  <div className="flex flex-col">
+                      <h2 className="text-2xl font-bold text-gray-800">Catálogo de Produtos</h2>
+                      <div className="flex gap-2 mt-1">
+                        <span className="bg-orange-100 text-orange-800 text-xs font-semibold px-2.5 py-0.5 rounded">Lojista Vip</span>
+                      </div>
+                  </div>
+
+                  {/* SEARCH AND SORT CONTROLS */}
+                  <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
+                      {/* Search Bar */}
+                      <form onSubmit={handleSearchSubmit} className="relative group w-full sm:w-64">
+                          <input 
+                              type="text"
+                              placeholder="Buscar por nome..."
+                              className="w-full bg-white border border-gray-300 text-gray-700 text-sm rounded-full focus:ring-2 focus:ring-orange-500 focus:border-transparent block pl-10 p-2.5 outline-none shadow-sm transition-all"
+                              value={searchTerm}
+                              onChange={(e) => handleSearchChange(e.target.value)}
+                          />
+                          <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                              <svg className="w-4 h-4 text-gray-400 group-focus-within:text-orange-500" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 20 20">
+                                  <path stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="m19 19-4-4m0-7A7 7 0 1 1 1 8a7 7 0 0 1 14 0Z"/>
+                              </svg>
+                          </div>
+                      </form>
+
+                      {/* Sort Dropdown */}
+                      <div className="relative w-full sm:w-48">
+                          <select 
+                              value={sortBy}
+                              onChange={handleSortChange}
+                              className="w-full bg-white border border-gray-300 text-gray-700 text-sm rounded-full focus:ring-2 focus:ring-orange-500 focus:border-transparent block p-2.5 outline-none shadow-sm appearance-none cursor-pointer"
+                          >
+                              <option value="default">Padrão</option>
+                              <option value="price_asc">💰 Menor Preço</option>
+                              <option value="price_desc">💎 Maior Preço</option>
+                              <option value="views">🔥 Mais Procurados</option>
+                              <option value="newest">🆕 Recém Adicionados</option>
+                          </select>
+                          <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                              <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7"></path></svg>
+                          </div>
+                      </div>
                   </div>
                 </div>
                 
                 {/* PROMO SECTION */}
-                {!selectedCategory && promoProducts.length > 0 && (
+                {!selectedCategory && !searchTerm && promoProducts.length > 0 && (
                     <div className="mb-8">
                         <h3 className="text-lg font-bold text-orange-600 mb-3 flex items-center gap-2">
                             <span className="text-xl">🔥</span> Ofertas Imperdíveis
@@ -665,7 +836,7 @@ ${customerInfo}
              {filteredProducts.length === 0 ? (
                <div className="text-center py-20 text-gray-400">
                  <p className="text-lg">
-                     {products.length === 0 ? 'A loja está vazia. Adicione produtos no painel.' : 'Nenhum produto nesta categoria.'}
+                     {products.length === 0 ? 'A loja está vazia. Adicione produtos no painel.' : 'Nenhum produto encontrado.'}
                  </p>
                </div>
              ) : (
@@ -686,7 +857,7 @@ ${customerInfo}
                 {totalPages > 1 && (
                   <div className="flex justify-center items-center mt-10 gap-4">
                     <button 
-                      onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                      onClick={() => handlePageChange(Math.max(1, currentPage - 1))}
                       disabled={currentPage === 1}
                       className="px-4 py-2 rounded-lg border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
@@ -696,7 +867,7 @@ ${customerInfo}
                       Página {currentPage} de {totalPages}
                     </span>
                     <button 
-                      onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                      onClick={() => handlePageChange(Math.min(totalPages, currentPage + 1))}
                       disabled={currentPage === totalPages}
                       className="px-4 py-2 rounded-lg border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                     >

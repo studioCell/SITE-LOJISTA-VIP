@@ -67,11 +67,11 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart, 
         
         <div className="mt-auto pt-3 flex items-end justify-between">
           <div className="flex flex-col">
-            <span className="text-[10px] text-gray-400 font-medium uppercase tracking-wide">A partir de</span>
+            <span className="text-[10px] text-gray-400 font-medium uppercase tracking-wide">Por Apenas</span>
             <span className="text-lg md:text-xl font-bold text-orange-600 leading-none">
               {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(product.price)}
             </span>
-            <span className="text-[10px] text-gray-400">à vista</span>
+            <span className="text-[10px] text-gray-400">No Atacado</span>
           </div>
           
           <Button 
