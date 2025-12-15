@@ -13,12 +13,12 @@ interface PrintPreviewModalProps {
 }
 
 const STATUS_LABELS: Record<OrderStatus, string> = {
-  orcamento: 'Orçamento',
+  orcamento: 'Pedidos em aberto',
   realizado: 'Pedido Finalizado',
   pagamento_pendente: 'Aguard. Pagamento',
   preparacao: 'Em Preparação',
   transporte: 'Em Trânsito',
-  entregue: 'Entregue',
+  entregue: 'Concluídos',
   devolucao: 'Devolução',
   cancelado: 'Cancelado'
 };

@@ -23,6 +23,10 @@ export interface User {
   username?: string; 
   phone?: string; 
   
+  // Personal Info
+  cpf?: string;
+  birthDate?: string;
+
   // Address Fields
   cep?: string;
   city?: string;
@@ -83,6 +87,10 @@ export interface Order {
   userName: string;
   userPhone: string;
   
+  // Personal Info on Order Snapshot
+  userCpf?: string;
+  userBirthDate?: string;
+
   // Address Details
   userCep?: string;
   userCity?: string;
@@ -101,8 +109,12 @@ export interface Order {
   wantsInvoice?: boolean; 
   wantsInsurance?: boolean; 
 
+  // Documents
+  invoicePdf?: string; // Base64 of PDF
+
   status: OrderStatus;
   createdAt: number;
+  deliveredAt?: number; // Timestamp when status changed to delivered
   trackingCode?: string;
   sellerId?: string; // New: Track which vendor made the sale
   history: { status: OrderStatus; timestamp: number }[];

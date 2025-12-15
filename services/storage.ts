@@ -1,5 +1,5 @@
 
-
+// ... existing imports ...
 import { 
   collection, 
   doc, 
@@ -53,8 +53,7 @@ const sanitizePayload = (data: any): any => {
   return JSON.parse(JSON.stringify(data));
 };
 
-// --- Real-time Listeners (Subscriptions) ---
-
+// ... existing real-time listeners ...
 export const subscribeToProducts = (callback: (products: Product[]) => void) => {
   if (!isFirebaseConfigured) {
     callback(MOCK_PRODUCTS);
@@ -156,8 +155,7 @@ export const subscribeToUsers = (callback: (users: User[]) => void) => {
   );
 };
 
-// --- Categories CRUD ---
-
+// ... Categories CRUD ...
 export const addCategory = async (name: string) => {
   if (!isFirebaseConfigured || !name.trim()) return;
   try {
@@ -180,8 +178,7 @@ export const deleteCategory = async (id: string, name: string) => {
   } catch (error) { handleFirestoreError(error); }
 };
 
-// --- Products CRUD ---
-
+// ... Products CRUD ...
 export const getStoredProducts = async (): Promise<Product[]> => {
   if (!isFirebaseConfigured) return MOCK_PRODUCTS;
   try {
@@ -273,8 +270,7 @@ export const deleteAllProducts = async () => {
     } catch (error) { handleFirestoreError(error); }
 };
 
-// --- Stories ---
-
+// ... Stories ...
 export const addStory = async (storyData: { imageUrl: string; type: 'image' | 'video'; caption: string; productId?: string }) => {
   if (!isFirebaseConfigured) return;
   try {
@@ -310,8 +306,7 @@ export const deleteStory = async (id: string) => {
   } catch (error) { handleFirestoreError(error); }
 };
 
-// --- Settings & Images ---
-
+// ... Settings & Images ...
 export const getShopSettings = async (): Promise<ShopSettings> => {
   const defaults: ShopSettings = {
     shopName: "Lojista Vip",
@@ -378,8 +373,7 @@ export const saveLogo = async (url: string) => {
   } catch (error) { handleFirestoreError(error); }
 };
 
-// --- Auth & Users (Cloud) ---
-
+// ... Auth & Users (Cloud) ...
 export const getUsers = async (): Promise<User[]> => {
   if (!isFirebaseConfigured) return [];
   try {
@@ -440,7 +434,7 @@ export const registerVendor = async (name: string, phone: string, password: stri
 }
 
 // Register
-export const registerUser = async (userData: { name: string; phone: string; cep: string; city: string; street: string; number: string; district: string; complement: string; password: string; }): Promise<{ success: boolean; message: string; user?: User }> => {
+export const registerUser = async (userData: { name: string; phone: string; cpf?: string; birthDate?: string; cep: string; city: string; street: string; number: string; district: string; complement: string; password: string; }): Promise<{ success: boolean; message: string; user?: User }> => {
   if (!isFirebaseConfigured) {
     return { success: false, message: 'Banco de dados não configurado.' };
   }
@@ -557,20 +551,77 @@ export const getOrders = async (): Promise<Order[]> => {
   } catch (error) { return handleFirestoreError(error, []); }
 };
 
+// --- EMAIL NOTIFICATION SYSTEM ---
+const sendEmailNotification = async (order: Order) => {
+  const emailTarget = "m.mateushugo123@gmail.com";
+  const subject = `Novo Pedido #${order.id.slice(-6)} - Lojista Vip`;
+  
+  // Format items for email
+  const itemsList = order.items.map(i => 
+    `- ${i.quantity}x ${i.name} (R$ ${i.price.toFixed(2)})`
+  ).join('\n');
+
+  const message = `
+    NOVO PEDIDO RECEBIDO!
+    --------------------------------
+    Cliente: ${order.userName}
+    Telefone: ${order.userPhone}
+    CPF: ${order.userCpf || 'N/A'}
+    Nascimento: ${order.userBirthDate || 'N/A'}
+    
+    Endereço:
+    ${order.userStreet}, ${order.userNumber} - ${order.userDistrict}
+    ${order.userCity} - ${order.userCep}
+    ${order.userComplement ? 'Comp: ' + order.userComplement : ''}
+    
+    Itens:
+    ${itemsList}
+    
+    Total (Estimado): R$ ${order.total.toFixed(2)}
+    Forma de Envio: ${order.shippingMethod}
+    
+    Acesse o painel administrativo para mais detalhes.
+  `;
+
+  try {
+    // FormSubmit Endpoint - using standard POST structure
+    // Adding _template=table for better formatting and _captcha=false to avoid blocks
+    await fetch(`https://formsubmit.co/ajax/${emailTarget}`, {
+      method: "POST",
+      headers: { 
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      },
+      body: JSON.stringify({
+        _subject: subject,
+        message: message,
+        _template: "table",
+        _captcha: "false"
+      })
+    });
+    console.log("Email de notificação enviado via FormSubmit.");
+  } catch (error) {
+    console.error("Falha ao enviar email de notificação:", error);
+  }
+};
+
 export const saveOrder = async (order: Order) => {
   if (!isFirebaseConfigured) return;
   try {
     const orderRef = doc(collection(db, ORDERS_COL)); // New ID
     const orderWithId = { ...order, id: orderRef.id };
     
-    // SANITIZE PAYLOAD: Removes undefined values to prevent crash
     const safePayload = sanitizePayload(orderWithId);
     
     await setDoc(orderRef, safePayload);
+
+    // Send Email (Fire and forget)
+    sendEmailNotification(orderWithId).catch(console.error);
+
   } catch (error) { 
     console.error("Error saving order:", error);
     handleFirestoreError(error); 
-    throw error; // Re-throw so UI knows it failed
+    throw error; 
   }
 };
 

@@ -4,6 +4,7 @@ import {
   subscribeToProducts,
   subscribeToStories,
   subscribeToCategories,
+  subscribeToOrders, // Imported for global listener
   addProduct,
   updateProduct,
   deleteProduct,
@@ -41,6 +42,9 @@ import { UserOrdersModal } from './components/UserOrdersModal';
 import { ProductFormModal } from './components/ProductFormModal';
 import { OrderSuccessModal } from './components/OrderSuccessModal';
 
+// Base64 Simple Ding Sound (Glass Ping)
+const NOTIFICATION_SOUND = "data:audio/mp3;base64,//uQxAAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq//uQxAAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq//uQxAAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq//uQxAAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq//uQxAAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq//uQxAAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq//uQxAAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq//uQxAAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq//uQxAAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq//uQxAAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq//uQxAAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq//uQxAAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq//uQxAAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq//uQxAAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq//uQxAAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq//uQxAAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq//uQxAAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq//uQxAAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq//uQxAAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq//uQxAAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq//uQxAAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq//uQxAAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq//uQxAAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq//uQxAAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq");
+
 function App() {
   const [products, setProducts] = useState<Product[]>([]);
   const [stories, setStories] = useState<Story[]>([]);
@@ -74,6 +78,10 @@ function App() {
   // References
   const heroFileInputRef = useRef<HTMLInputElement>(null);
   const productAnchorRef = useRef<HTMLDivElement>(null); // Anchor for scrolling
+  
+  // Notification Reference to track the last seen order timestamp
+  // We initialize with Date.now() to avoid notifying for old orders on first load
+  const lastOrderTimestampRef = useRef<number>(Date.now()); 
 
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
@@ -95,6 +103,7 @@ function App() {
 
   // Success Modal State
   const [showOrderSuccess, setShowOrderSuccess] = useState(false);
+  const [lastOrderForWhatsapp, setLastOrderForWhatsapp] = useState<Order | null>(null);
 
   // Policy Modal State
   const [policyModal, setPolicyModal] = useState<{ isOpen: boolean; title: string; content: string }>({
@@ -151,6 +160,80 @@ function App() {
       unsubCategories();
     };
   }, []);
+
+  // --- NOTIFICATION LISTENER FOR ADMINS ---
+  useEffect(() => {
+    // Only run this logic if user is Admin or Vendor
+    if (!currentUser || (!currentUser.isAdmin && !currentUser.isVendor)) return;
+
+    // Reset Title on mount
+    document.title = "Lojista Vip";
+
+    let isFirstLoad = true;
+
+    // Listen to ALL orders to detect new ones
+    const unsubscribeOrders = subscribeToOrders((allOrders) => {
+        if (allOrders.length === 0) return;
+
+        // Find the absolute latest order
+        const newestOrder = allOrders.reduce((prev, current) => 
+            (prev.createdAt > current.createdAt) ? prev : current
+        );
+
+        if (isFirstLoad) {
+            // On first load, just sync the timestamp, don't notify
+            // Use Math.max to ensure we don't go backwards if local time is off
+            lastOrderTimestampRef.current = Math.max(lastOrderTimestampRef.current, newestOrder.createdAt);
+            isFirstLoad = false;
+        } else {
+            // Check if there is a TRULY new order
+            if (newestOrder.createdAt > lastOrderTimestampRef.current) {
+                
+                // 1. Update timestamp
+                lastOrderTimestampRef.current = newestOrder.createdAt;
+
+                // 2. Play Sound
+                try {
+                    const audio = new Audio(NOTIFICATION_SOUND);
+                    audio.volume = 0.5;
+                    audio.play().catch(e => console.log("Audio play blocked", e));
+                } catch (e) {
+                    console.error("Sound error", e);
+                }
+
+                // 3. Update Document Title
+                document.title = "🔔 NOVO PEDIDO! - Lojista Vip";
+
+                // 4. Show Browser Notification
+                if ("Notification" in window && Notification.permission === "granted") {
+                    const notif = new Notification("💰 Novo Pedido Recebido!", {
+                        body: `Cliente: ${newestOrder.userName}\nValor: R$ ${newestOrder.total.toFixed(2)}`,
+                        icon: logo || undefined, // Use logo if available
+                        tag: newestOrder.id // Prevent duplicate notifications for same ID
+                    });
+                    
+                    notif.onclick = () => {
+                        window.focus();
+                        setView('admin'); // Navigate to admin
+                        document.title = "Lojista Vip"; // Reset title
+                        notif.close();
+                    };
+                }
+            }
+        }
+    });
+
+    return () => unsubscribeOrders();
+  }, [currentUser, logo]); // Re-run if user logs in/out
+
+  // Reset title when entering Admin view
+  useEffect(() => {
+      if (view === 'admin') {
+          document.title = "Painel Administrativo - Lojista Vip";
+      } else {
+          document.title = "Lojista Vip";
+      }
+  }, [view]);
 
   // Separate effect for URL param to ensure products are loaded
   useEffect(() => {
@@ -237,31 +320,29 @@ function App() {
     }
 
     const subtotal = cart.reduce((acc, item) => acc + (item.price * item.quantity), 0);
-    const invoiceFee = extras.wantsInvoice ? subtotal * 0.06 : 0;
-    const insuranceFee = extras.wantsInsurance ? subtotal * 0.03 : 0;
-    const total = subtotal + invoiceFee + insuranceFee;
+    const total = subtotal; 
     
     // Determine who is the "User" for the order
     const targetUser = customerOverride ? customerOverride.user : currentUser;
     const targetAddress = customerOverride ? customerOverride.address : null;
 
-    // --- CRITICAL FIX: ALWAYS SAVE ORDER TO DB FIRST ---
     if (targetUser && cart.length > 0) {
-      // FORCE DEFAULTS for ALL fields to avoid 'undefined' error in Firestore
-      // AUTO-FILL Address from User Profile if not provided in override
       const newOrder: Order = {
         id: Date.now().toString(), 
         userId: targetUser.id || 'unknown',
         userName: targetUser.name || 'Cliente',
         userPhone: targetUser.phone || '',
         
-        // Priority: Override Address > User Profile Address > Empty String
+        // Pass Personal Info
+        userCpf: targetUser.cpf || '',
+        userBirthDate: targetUser.birthDate || '',
+        
         userCep: targetAddress?.cep || targetUser.cep || '',
         userCity: targetAddress?.city || targetUser.city || '',
         userStreet: targetAddress?.street || targetUser.street || '', 
         userNumber: targetAddress?.number || targetUser.number || '',
         userDistrict: targetAddress?.district || targetUser.district || '',
-        userComplement: targetUser.complement || '', // User Complement
+        userComplement: targetUser.complement || '', 
 
         items: [...cart],
         total: total || 0,
@@ -271,108 +352,45 @@ function App() {
         wantsInsurance: !!extras.wantsInsurance,
         shippingMethod: extras.shippingMethod || '',
         
-        status: 'orcamento', // Initial status is always 'orcamento'
+        status: 'orcamento', 
         createdAt: Date.now(),
-        trackingCode: '', // Empty string, not undefined
-        // Assign sellerId only if the current logged-in user is a Vendor acting on behalf
+        trackingCode: '', 
         sellerId: (currentUser.isVendor || currentUser.isAdmin) ? currentUser.id : null as any,
         history: [{ status: 'orcamento', timestamp: Date.now() }]
       };
 
       try {
-        // Await the save to ensure DB consistency before UI changes
         await saveOrder(newOrder);
-        setCart([]); // Clear cart locally after successful save
+        setCart([]); // Clear cart
+        
+        // --- WHATSAPP NOTIFICATION LOGIC ---
+        // Since we don't have a backend to push messages, we direct the CLIENT to send the message.
+        setLastOrderForWhatsapp(newOrder); // Store for modal retry
+        
+        const itemsList = newOrder.items.map(i => `${i.quantity}x ${i.name}`).join('\n');
+        const adminPhone = "5562992973853";
+        const message = 
+`🔔 *NOVO PEDIDO REALIZADO!*
+--------------------------------
+🆔 *Pedido:* #${newOrder.id.slice(-6)}
+👤 *Cliente:* ${newOrder.userName}
+💰 *Total:* R$ ${newOrder.total.toFixed(2)}
+
+📦 *Itens:*
+${itemsList}
+
+📍 *Destino:* ${newOrder.userCity || 'N/A'}
+
+Estou aguardando a confirmação!`;
+
+        const whatsappUrl = `https://api.whatsapp.com/send?phone=${adminPhone}&text=${encodeURIComponent(message)}`;
+        
+        // Attempt to open WhatsApp immediately
+        const w = window.open(whatsappUrl, '_blank');
         
         // TRIGGER SUCCESS MODAL
         setIsCartOpen(false);
         setShowOrderSuccess(true);
-        
-        // DELAY WHATSAPP OPENING
-        setTimeout(() => {
-            setShowOrderSuccess(false);
-            
-            // Build WA Message
-            const now = new Date();
-            const dateStr = now.toLocaleDateString('pt-BR');
-            const timeStr = now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-
-            const lines = cart.map(item => {
-              const totalItem = item.quantity * item.price;
-              let line = `${item.quantity} . ${item.name} (R$ ${item.price.toFixed(2)}) = R$ ${totalItem.toFixed(2)}`;
-              if (item.note) line += `\n( ${item.note} )`;
-              return line;
-            });
-
-            let addressBlock = "";
-            const displayStreet = targetAddress?.street || targetUser.street;
-            const displayNumber = targetAddress?.number || targetUser.number;
-            const displayDistrict = targetAddress?.district || targetUser.district;
-            const displayCity = targetAddress?.city || targetUser.city;
-            const displayCep = targetAddress?.cep || targetUser.cep;
-            const displayComp = targetUser.complement;
-
-            if (displayStreet) {
-                addressBlock = `📍 ${displayStreet}, ${displayNumber || 'S/N'}`;
-                if(displayDistrict) addressBlock += ` - ${displayDistrict}`;
-                if(displayComp) addressBlock += ` (${displayComp})`;
-                addressBlock += `\n${displayCity || ''} / ${displayCep || ''}`;
-            } else {
-                addressBlock = `📍 Retirada / A Combinar (${displayCity || 'Cidade não inf.'})`;
-            }
-
-            // Lógica de Frete e Mensagem Final
-            let shippingInfoText = extras.shippingMethod || "A Combinar";
-            let finalMessage = "Confirma o pedido?";
-
-            switch (extras.shippingMethod) {
-                case 'Retirada':
-                    shippingInfoText = "Retirada (Não é cobrado o frete)";
-                    finalMessage = "Confirma o pedido? Vou te enviar os dados do endereço para retirada.";
-                    break;
-                case 'Correios':
-                    shippingInfoText = "Correios (Vou calcular o frete pra você)";
-                    finalMessage = "Confirma o pedido? Logo mais vou calcular seu frete, me confimar o Cep de envio por gentileza.";
-                    break;
-                case 'Transportadora':
-                    shippingInfoText = "Transportadora (Vou te passar as transportadoras disponíveis e os valores)";
-                    finalMessage = "Confirma o pedido? Logo mais vou calcular seu frete, me confimar o Cep de envio por gentileza.";
-                    break;
-                case 'Motoboy':
-                    shippingInfoText = "Motoboy (Cobrado de 20 a 40 reais dentro de Goiânia)";
-                    finalMessage = "Confirma o pedido? Me envie a localização para que eu possa te passar o valor do motoboy.";
-                    break;
-                default:
-                    finalMessage = "Confirma o pedido?";
-                    break;
-            }
-
-            const text = 
-`🧾 PEDIDO – ${targetUser.name.toUpperCase()}
-Cód: #${newOrder.id.slice(-6)}
-Contato: ${targetUser.phone}
-
-${addressBlock}
-
-🕒 Data: ${dateStr}
-🕒 Hora: ${timeStr}
-📌 Status: Aguardando aprovação
-
-**📦 PRODUTOS:
-
-${lines.join('\n')}
-
-📦 Envio: ${shippingInfoText}
-
-🔖 DESCONTO: R$ 0.00
-💰 TOTAL DO PEDIDO: *R$ ${total.toFixed(2)}*
-
-${finalMessage}`;
-            
-            const encodedText = encodeURIComponent(text);
-            const phoneNumber = '5562992973853'; // Store number
-            window.open(`https://api.whatsapp.com/send?phone=${phoneNumber}&text=${encodedText}`, '_blank');
-        }, 2500); // 2.5s delay to show success animation
 
       } catch (error) {
         console.error("Erro ao salvar pedido:", error);
@@ -469,7 +487,6 @@ ${finalMessage}`;
   };
 
   const handleDeleteStory = async (id: string) => {
-    // Confirmation handled in StoryViewer now
     setViewingStoryId(null);
     try {
       await deleteStory(id);
@@ -548,7 +565,6 @@ ${finalMessage}`;
       setCurrentPage(1);
   };
 
-  // Delayed Search Execution (Debounce simulation or immediate transition trigger if enter)
   const handleSearchSubmit = (e?: React.FormEvent) => {
       e?.preventDefault();
       performTransition(() => {
@@ -572,13 +588,10 @@ ${finalMessage}`;
 
   const isStaff = currentUser?.isAdmin || currentUser?.isVendor;
 
-  // --- Filtering & Sorting Logic ---
   const filteredProducts = useMemo(() => {
       let result = products.filter(p => p.available);
 
-      // 1. Filter by Category
       if (selectedCategory === 'Novidades da Semana') {
-          // This category logic often implies sorting by date too, but let's keep it consistent
           result = result.filter(p => {
              const oneWeekAgo = Date.now() - (7 * 24 * 60 * 60 * 1000);
              return (p.createdAt || 0) > oneWeekAgo;
@@ -587,13 +600,11 @@ ${finalMessage}`;
           result = result.filter(p => p.category === selectedCategory);
       }
 
-      // 2. Filter by Search Term
       if (searchTerm.trim()) {
           const lowerTerm = searchTerm.toLowerCase();
           result = result.filter(p => p.name.toLowerCase().includes(lowerTerm));
       }
 
-      // 3. Sorting
       switch (sortBy) {
           case 'price_asc':
               result.sort((a, b) => a.price - b.price);
@@ -608,7 +619,6 @@ ${finalMessage}`;
               result.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
               break;
           default:
-              // Default sorting (maybe random or by ID)
               break;
       }
 
@@ -649,7 +659,6 @@ ${finalMessage}`;
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col font-sans relative">
       
-      {/* WHITE SCREEN TRANSITION OVERLAY */}
       {isTransitioning && (
           <div className="fixed inset-0 z-[200] bg-white flex items-center justify-center animate-fade-in">
               <div className="flex flex-col items-center">
@@ -719,7 +728,7 @@ ${finalMessage}`;
                </div>
              )}
 
-             {/* Static Hero Cover (Always shown since carousel is removed) */}
+             {/* Static Hero Cover */}
              {!selectedCategory && !searchTerm && (
                 <div className="mb-10 rounded-2xl overflow-hidden shadow-lg relative group bg-gray-100 min-h-[100px]">
                   {heroImage && !heroImageError ? (
@@ -756,7 +765,6 @@ ${finalMessage}`;
 
              <div className="flex flex-col mb-6">
                 
-                {/* --- ANCHOR FOR SCROLL --- */}
                 <div ref={productAnchorRef} className="scroll-mt-32"></div>
 
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
@@ -769,7 +777,6 @@ ${finalMessage}`;
 
                   {/* SEARCH AND SORT CONTROLS */}
                   <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
-                      {/* Search Bar */}
                       <form onSubmit={handleSearchSubmit} className="relative group w-full sm:w-64">
                           <input 
                               type="text"
@@ -780,12 +787,11 @@ ${finalMessage}`;
                           />
                           <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
                               <svg className="w-4 h-4 text-gray-400 group-focus-within:text-orange-500" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 20 20">
-                                  <path stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="m19 19-4-4m0-7A7 7 0 1 1 1 8a7 7 0 0 1 14 0Z"/>
+                                  <path stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="m19 19-4-4m0-7A7 7 0 1 1 1 8a7 7 0 0 1 14 0Z"/>
                               </svg>
                           </div>
                       </form>
 
-                      {/* Sort Dropdown */}
                       <div className="relative w-full sm:w-48">
                           <select 
                               value={sortBy}
@@ -889,26 +895,11 @@ ${finalMessage}`;
             rel="noopener noreferrer"
             className="inline-flex items-center gap-2 text-orange-600 hover:text-orange-500 font-bold mb-4 transition-colors text-lg"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" viewBox="0 0 16 16">
-              <path d="M8 0C5.829 0 5.556.01 4.703.048 3.85.088 3.269.222 2.76.42a3.917 3.917 0 0 0-1.417.923A3.927 3.927 0 0 0 .42 2.76C.222 3.268.087 3.85.048 4.7.01 5.555 0 5.827 0 8.001c0 2.172.01 2.444.048 3.297.04.852.174 1.433.372 1.942.205.526.478.972.923 1.417.444.445.89.719 1.416.923.51.198 1.09.333 1.942.372C5.555 15.99 5.827 16 8 16s2.444-.01 3.298-.048c.851-.04 1.434-.174 1.943-.372a3.916 3.916 0 0 0 1.416-.923c.445-.445.718-.891.923-1.417.197-.509.332-1.09.372-1.942C15.99 10.445 16 10.173 16 8s-.01-2.445-.048-3.299c-.04-.851-.175-1.433-.372-1.941a3.926 3.926 0 0 0-.923-1.417A3.911 3.911 0 0 0 13.24.42c-.51-.198-1.092-.333-1.943-.372C10.443.01 10.172 0 7.998 0h.003zm-.717 1.442h.718c2.136 0 2.389.007 3.232.046.78.035 1.204.166 1.486.275.373.145.64.319.92.599.28.28.453.546.598.92.11.281.24.705.275 1.485.039.843.047 1.096.047 3.231s-.008 2.389-.047 3.232c-.035.78-.166 1.203-.275 1.485a2.47 2.47 0 0 1-.599.919c-.28.28-.546.453-.92.598-.28.11-.704.24-1.485.276-.843.038-1.096.047-3.232.047s-2.39-.009-3.233-.047c-.78-.036-1.203-.166-1.485-.276a2.478 2.478 0 0 1-.92-.598 2.48 2.48 0 0 1-.6-.92c-.109-.281-.24-.705-.275-1.485-.038-.843-.046-1.096-.046-3.233 0-2.136.008-2.388.046-3.231.036-.78.166-1.204.276-1.486.145-.373.319-.64.599-.92.28-.28.546-.453.92-.598.282-.11.705-.24 1.485-.276.738-.034 1.024-.044 2.515-.045v.002zm4.988 1.328a.96.96 0 1 0 0 1.92.96.96 0 0 0 0-1.92zm-4.27 1.122a4.109 4.109 0 1 0 0 8.217 4.109 4.109 0 0 0 0-8.217zm0 1.441a2.667 2.667 0 1 1 0 5.334 2.667 2.667 0 0 1 0-5.334z"/>
-            </svg>
             @Lojista.vip
           </a>
           <p className="text-gray-400 text-sm mt-2">&copy; {new Date().getFullYear()} Lojista Vip. Todos os direitos reservados.</p>
         </div>
       </footer>
-
-      <a 
-        href="https://api.whatsapp.com/send?phone=5562992973853" 
-        target="_blank" 
-        rel="noopener noreferrer"
-        className="fixed bottom-4 right-4 z-[90] bg-green-500 hover:bg-green-600 text-white p-4 rounded-full shadow-lg transition-transform hover:scale-110 flex items-center justify-center animate-bounce-slow"
-        aria-label="Fale Conosco no WhatsApp"
-      >
-        <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" fill="currentColor" viewBox="0 0 16 16">
-          <path d="M13.601 2.326A7.854 7.854 0 0 0 7.994 0C3.627 0 .068 3.558.064 7.926c0 1.399.366 2.76 1.057 3.965L0 16l4.204-1.102a7.933 7.933 0 0 0 3.79.965h.004c4.368 0 7.926-3.558 7.93-7.93A7.898 7.898 0 0 0 13.6 2.326zM7.994 14.521a6.573 6.573 0 0 1-3.356-.92l-.24-.144-2.494.654.666-2.433-.156-.251a6.56 6.56 0 0 1-1.007-3.505c0-3.626 2.957-6.584 6.591-6.584a6.56 6.56 0 0 1 4.66 1.931 6.557 6.557 0 0 1 1.928 4.66c-.004 3.639-2.961 6.592-6.592 6.592zm3.615-4.934c-.197-.099-1.17-.578-1.353-.646-.182-.065-.315-.099-.445.099-.133.197-.513.646-.627.775-.114.133-.232.148-.43.05-.197-.1-.836-.308-1.592-.985-.59-.525-.985-1.175-1.103-1.372-.114-.198-.011-.304.088-.403.087-.088.197-.232.296-.346.1-.114.133-.198.198-.33.065-.134.034-.248-.015-.347-.05-.099-.445-1.076-.612-1.47-.16-.389-.323-.335-.445-.34-.114-.007-.247-.007-.38-.007a.729.729 0 0 0-.529.247c-.182.198-.691.677-.691 1.654 0 .977.71 1.916.81 2.049.098.133 1.394 2.132 3.383 2.992.47.205.84.326 1.129.418.475.152.904.129 1.246.08.38-.058 1.171-.48 1.338-.943.164-.464.164-.86.114-.943-.049-.084-.182-.133-.38-.232z"/>
-        </svg>
-      </a>
 
       <CartSidebar 
         isOpen={isCartOpen} 
@@ -1006,7 +997,12 @@ ${finalMessage}`;
         categories={categories}
       />
 
-      <OrderSuccessModal isOpen={showOrderSuccess} />
+      <OrderSuccessModal 
+        isOpen={showOrderSuccess} 
+        onClose={() => setShowOrderSuccess(false)} 
+        onOpenMyOrders={() => { setShowOrderSuccess(false); setIsUserOrdersOpen(true); }}
+        order={lastOrderForWhatsapp} 
+      />
     </div>
   );
 }

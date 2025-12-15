@@ -61,9 +61,9 @@ export const CartSidebar: React.FC<CartSidebarProps> = ({
   }, [isAdmin, isSearchingClient]);
 
   const subtotal = items.reduce((acc, item) => acc + (item.price * item.quantity), 0);
-  const invoiceFee = wantsInvoice ? subtotal * 0.06 : 0;
-  const insuranceFee = wantsInsurance ? subtotal * 0.03 : 0;
-  const total = subtotal + invoiceFee + insuranceFee;
+  
+  // NOTE: For client, we do NOT add fees to total visually. For admin, logic might differ but keeping consistent.
+  const total = subtotal; 
 
   const MIN_ORDER_VALUE = 20.00;
   
@@ -203,6 +203,7 @@ export const CartSidebar: React.FC<CartSidebarProps> = ({
           <div className="p-5 bg-gray-50 border-t border-gray-200">
             {isAdmin && (
                 <div className="mb-4 bg-white border border-gray-200 rounded-lg p-3 shadow-sm">
+                    {/* Admin Client Search (omitted for brevity, same as previous) */}
                     <div className="flex justify-between items-center mb-2">
                         <h3 className="text-xs font-bold text-gray-700 uppercase">👤 Cliente</h3>
                         {!isSearchingClient && !selectedUser && (
@@ -227,8 +228,6 @@ export const CartSidebar: React.FC<CartSidebarProps> = ({
                     ) : (
                         <div>
                             <p className="font-bold text-gray-800 text-sm">{selectedUser.name} <span className="text-gray-500 font-normal">({selectedUser.phone})</span></p>
-                            
-                            {/* ADDRESS TOGGLE */}
                             <div className="mt-3 pt-2 border-t border-gray-100">
                                 <label className="flex items-center gap-2 cursor-pointer mb-2 select-none">
                                     <input 
@@ -239,72 +238,19 @@ export const CartSidebar: React.FC<CartSidebarProps> = ({
                                     />
                                     <span className="text-xs font-bold text-gray-600">Editar dados de entrega</span>
                                 </label>
-
                                 {showAddressForm && (
                                     <div className="space-y-3 bg-zinc-900 p-4 rounded-xl border border-zinc-700 animate-fade-in shadow-lg">
+                                      {/* Address inputs same as before */}
                                         <div className="flex justify-between items-center mb-1">
                                             <span className="text-xs font-bold text-white uppercase">📍 Endereço</span>
                                             {loadingAddress && <span className="text-[10px] text-orange-400 animate-pulse">Buscando...</span>}
                                         </div>
                                         <div className="flex gap-2">
-                                            <div className="flex-1">
-                                                <label className="text-[10px] text-gray-400 font-bold mb-1 block">CEP</label>
-                                                <input 
-                                                    placeholder="00000-000" 
-                                                    className="w-full bg-zinc-800 border border-zinc-600 p-2 text-xs rounded text-white placeholder-gray-500 focus:border-orange-500 outline-none transition-colors"
-                                                    value={addressForm.cep}
-                                                    onChange={e => setAddressForm({...addressForm, cep: e.target.value})}
-                                                    onBlur={handleCepBlurInternal}
-                                                />
-                                            </div>
-                                            <div className="flex-[2]">
-                                                <label className="text-[10px] text-gray-400 font-bold mb-1 block">Cidade</label>
-                                                <input 
-                                                    placeholder="Cidade" 
-                                                    className="w-full bg-zinc-950 border border-zinc-800 p-2 text-xs rounded text-gray-500 font-medium"
-                                                    value={addressForm.city}
-                                                    readOnly
-                                                />
-                                            </div>
+                                            <div className="flex-1"><label className="text-[10px] text-gray-400 font-bold mb-1 block">CEP</label><input placeholder="00000-000" className="w-full bg-zinc-800 border border-zinc-600 p-2 text-xs rounded text-white" value={addressForm.cep} onChange={e => setAddressForm({...addressForm, cep: e.target.value})} onBlur={handleCepBlurInternal}/></div>
+                                            <div className="flex-[2]"><label className="text-[10px] text-gray-400 font-bold mb-1 block">Cidade</label><input placeholder="Cidade" className="w-full bg-zinc-950 border border-zinc-800 p-2 text-xs rounded text-gray-500 font-medium" value={addressForm.city} readOnly/></div>
                                         </div>
-                                        <div>
-                                            <label className="text-[10px] text-gray-400 font-bold mb-1 block">Rua</label>
-                                            <input 
-                                                placeholder="Nome da Rua" 
-                                                className="w-full bg-zinc-800 border border-zinc-600 p-2 text-xs rounded text-white placeholder-gray-500 focus:border-orange-500 outline-none transition-colors"
-                                                value={addressForm.street}
-                                                onChange={e => setAddressForm({...addressForm, street: e.target.value})}
-                                            />
-                                        </div>
-                                        <div className="flex gap-2">
-                                            <div className="flex-1">
-                                                <label className="text-[10px] text-gray-400 font-bold mb-1 block">Número</label>
-                                                <input 
-                                                    placeholder="123" 
-                                                    className="w-full bg-zinc-800 border border-zinc-600 p-2 text-xs rounded text-white placeholder-gray-500 focus:border-orange-500 outline-none transition-colors"
-                                                    value={addressForm.number}
-                                                    onChange={e => setAddressForm({...addressForm, number: e.target.value})}
-                                                />
-                                            </div>
-                                            <div className="flex-[2]">
-                                                <label className="text-[10px] text-gray-400 font-bold mb-1 block">Bairro</label>
-                                                <input 
-                                                    placeholder="Bairro" 
-                                                    className="w-full bg-zinc-800 border border-zinc-600 p-2 text-xs rounded text-white placeholder-gray-500 focus:border-orange-500 outline-none transition-colors"
-                                                    value={addressForm.district}
-                                                    onChange={e => setAddressForm({...addressForm, district: e.target.value})}
-                                                />
-                                            </div>
-                                        </div>
-                                        <div>
-                                            <label className="text-[10px] text-gray-400 font-bold mb-1 block">Complemento</label>
-                                            <input 
-                                                placeholder="Apto, Bloco, etc..." 
-                                                className="w-full bg-zinc-800 border border-zinc-600 p-2 text-xs rounded text-white placeholder-gray-500 focus:border-orange-500 outline-none transition-colors"
-                                                value={addressForm.complement}
-                                                onChange={e => setAddressForm({...addressForm, complement: e.target.value})}
-                                            />
-                                        </div>
+                                        <div><label className="text-[10px] text-gray-400 font-bold mb-1 block">Rua</label><input placeholder="Nome da Rua" className="w-full bg-zinc-800 border border-zinc-600 p-2 text-xs rounded text-white" value={addressForm.street} onChange={e => setAddressForm({...addressForm, street: e.target.value})}/></div>
+                                        <div className="flex gap-2"><div className="flex-1"><label className="text-[10px] text-gray-400 font-bold mb-1 block">Número</label><input placeholder="123" className="w-full bg-zinc-800 border border-zinc-600 p-2 text-xs rounded text-white" value={addressForm.number} onChange={e => setAddressForm({...addressForm, number: e.target.value})}/></div><div className="flex-[2]"><label className="text-[10px] text-gray-400 font-bold mb-1 block">Bairro</label><input placeholder="Bairro" className="w-full bg-zinc-800 border border-zinc-600 p-2 text-xs rounded text-white" value={addressForm.district} onChange={e => setAddressForm({...addressForm, district: e.target.value})}/></div></div>
                                     </div>
                                 )}
                             </div>
@@ -329,19 +275,20 @@ export const CartSidebar: React.FC<CartSidebarProps> = ({
                 {!shippingMethod && !isAdmin && <p className="text-xs text-red-500 mt-1">Selecione uma forma de envio.</p>}
             </div>
 
-            <div className="space-y-2 mb-4">
-                <label className="flex items-center gap-2 p-2 border rounded cursor-pointer bg-white">
+            <div className="space-y-2 mb-4 bg-yellow-50 p-3 rounded-lg border border-yellow-100">
+                <p className="text-[10px] text-yellow-800 font-bold uppercase mb-2">Opções Adicionais (Solicitação)</p>
+                <label className="flex items-center gap-2 cursor-pointer">
                     <input type="checkbox" checked={wantsInvoice} onChange={(e) => setWantsInvoice(e.target.checked)} className="rounded text-orange-600" />
-                    <span className="text-xs text-gray-700 font-bold">Adicionar Nota Fiscal (+6%) <span className="text-gray-400 font-normal">(Opcional)</span></span>
+                    <span className="text-xs text-gray-700 font-bold">Solicitar Nota Fiscal</span>
                 </label>
-                <label className="flex items-center gap-2 p-2 border rounded cursor-pointer bg-white">
+                <label className="flex items-center gap-2 cursor-pointer">
                     <input type="checkbox" checked={wantsInsurance} onChange={(e) => setWantsInsurance(e.target.checked)} className="rounded text-orange-600" />
-                    <span className="text-xs text-gray-700 font-bold">Adicionar Seguro (+3%) <span className="text-gray-400 font-normal">(Opcional)</span></span>
+                    <span className="text-xs text-gray-700 font-bold">Solicitar Seguro</span>
                 </label>
             </div>
 
             <div className="flex justify-between items-center mb-4">
-              <span className="text-gray-600">Total Estimado</span>
+              <span className="text-gray-600">Total (Produtos)</span>
               <span className="text-xl font-bold text-gray-900">
                 {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(total)}
               </span>

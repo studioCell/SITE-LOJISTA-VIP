@@ -6,7 +6,7 @@ interface AuthModalProps {
   isOpen: boolean;
   onClose: () => void;
   onLogin: (identifier: string, pass: string, remember: boolean) => Promise<{ success: boolean; message: string }> | { success: boolean; message: string };
-  onRegister: (data: { name: string; phone: string; cep: string; city: string; street: string; number: string; district: string; complement: string; password: string }) => Promise<{ success: boolean; message: string }> | { success: boolean; message: string };
+  onRegister: (data: { name: string; phone: string; cpf: string; birthDate: string; cep: string; city: string; street: string; number: string; district: string; complement: string; password: string }) => Promise<{ success: boolean; message: string }> | { success: boolean; message: string };
   logo?: string;
 }
 
@@ -24,6 +24,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLogin, 
   // Register Data
   const [regName, setRegName] = useState('');
   const [regPhone, setRegPhone] = useState('');
+  const [regCpf, setRegCpf] = useState('');
+  const [regBirthDate, setRegBirthDate] = useState('');
   const [regCep, setRegCep] = useState('');
   const [regCity, setRegCity] = useState('');
   const [regStreet, setRegStreet] = useState('');
@@ -33,6 +35,24 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLogin, 
   const [regPass, setRegPass] = useState('');
 
   if (!isOpen) return null;
+
+  // Formatting Helpers
+  const formatCPF = (value: string) => {
+    return value
+      .replace(/\D/g, '')
+      .replace(/(\d{3})(\d)/, '$1.$2')
+      .replace(/(\d{3})(\d)/, '$1.$2')
+      .replace(/(\d{3})(\d{1,2})/, '$1-$2')
+      .replace(/(-\d{2})\d+?$/, '$1');
+  };
+
+  const formatDate = (value: string) => {
+    return value
+      .replace(/\D/g, '')
+      .replace(/(\d{2})(\d)/, '$1/$2')
+      .replace(/(\d{2})(\d)/, '$1/$2')
+      .replace(/(\d{4})\d+?$/, '$1');
+  };
 
   const handleCepChange = (val: string) => {
       const nums = val.replace(/\D/g, '');
@@ -92,6 +112,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLogin, 
         const result = await onRegister({
           name: regName,
           phone: regPhone,
+          cpf: regCpf,
+          birthDate: regBirthDate,
           cep: regCep,
           city: regCity,
           street: regStreet,
@@ -119,7 +141,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLogin, 
     setError('');
     setShowPassword(false);
     setIdentifier(''); setPassword('');
-    setRegName(''); setRegPhone(''); setRegCep(''); setRegCity(''); 
+    setRegName(''); setRegPhone(''); setRegCpf(''); setRegBirthDate('');
+    setRegCep(''); setRegCity(''); 
     setRegStreet(''); setRegNumber(''); setRegDistrict(''); setRegComplement('');
     setRegPass('');
   };
@@ -243,6 +266,30 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLogin, 
                   placeholder="(00) 00000-0000"
                   required
                 />
+              </div>
+              <div className="flex gap-2">
+                  <div className="flex-1">
+                      <label className="block text-xs font-bold text-gray-400 mb-1">CPF</label>
+                      <input 
+                        type="text" 
+                        value={regCpf}
+                        onChange={(e) => setRegCpf(formatCPF(e.target.value))}
+                        className="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg focus:ring-2 focus:ring-orange-600 outline-none text-sm text-white placeholder-gray-500"
+                        placeholder="000.000.000-00"
+                        maxLength={14}
+                      />
+                  </div>
+                  <div className="flex-1">
+                      <label className="block text-xs font-bold text-gray-400 mb-1">Nascimento</label>
+                      <input 
+                        type="text" 
+                        value={regBirthDate}
+                        onChange={(e) => setRegBirthDate(formatDate(e.target.value))}
+                        className="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg focus:ring-2 focus:ring-orange-600 outline-none text-sm text-white placeholder-gray-500"
+                        placeholder="DD/MM/AAAA"
+                        maxLength={10}
+                      />
+                  </div>
               </div>
               <div className="flex gap-2">
                 <div className="flex-1">

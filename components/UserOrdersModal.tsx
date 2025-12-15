@@ -6,31 +6,31 @@ import { PrintPreviewModal } from './PrintPreviewModal';
 interface UserOrdersModalProps {
   isOpen: boolean;
   onClose: () => void;
-  user: User | null; // Changed prop name from currentUser to user to be generic
-  type?: 'client' | 'vendor'; // New prop to distinguish filter logic
-  onSelectOrder?: (orderId: string) => void; // Callback to go to order in admin panel
+  user: User | null; 
+  type?: 'client' | 'vendor'; 
+  onSelectOrder?: (orderId: string) => void; 
 }
 
 const STATUS_LABELS: Record<OrderStatus, string> = {
-  orcamento: 'Orçamento',
-  realizado: 'Pedido Finalizado',
+  orcamento: 'Pedidos em aberto',
+  realizado: 'Aprovado / Finalizado',
   pagamento_pendente: 'Aguardando Pagamento',
   preparacao: 'Em Preparação',
   transporte: 'Em Trânsito',
-  entregue: 'Entregue',
+  entregue: 'Concluídos',
   devolucao: 'Devolução',
   cancelado: 'Cancelado'
 };
 
 const STATUS_COLORS: Record<OrderStatus, string> = {
-  orcamento: 'bg-gray-100 text-gray-700',
-  realizado: 'bg-blue-100 text-blue-700',
-  pagamento_pendente: 'bg-yellow-100 text-yellow-700',
-  preparacao: 'bg-orange-100 text-orange-700', 
-  transporte: 'bg-indigo-100 text-indigo-700',
-  entregue: 'bg-green-100 text-green-700',
-  devolucao: 'bg-red-100 text-red-700',
-  cancelado: 'bg-gray-800 text-white'
+  orcamento: 'bg-gray-100 text-gray-600 border-gray-200',
+  realizado: 'bg-blue-50 text-blue-700 border-blue-200',
+  pagamento_pendente: 'bg-yellow-50 text-yellow-700 border-yellow-200',
+  preparacao: 'bg-orange-50 text-orange-700 border-orange-200', 
+  transporte: 'bg-purple-50 text-purple-700 border-purple-200',
+  entregue: 'bg-green-50 text-green-700 border-green-200',
+  devolucao: 'bg-red-50 text-red-700 border-red-200',
+  cancelado: 'bg-gray-50 text-gray-500 border-gray-200'
 };
 
 export const UserOrdersModal: React.FC<UserOrdersModalProps> = ({ isOpen, onClose, user, type = 'client', onSelectOrder }) => {
@@ -46,10 +46,8 @@ export const UserOrdersModal: React.FC<UserOrdersModalProps> = ({ isOpen, onClos
         
         let filteredOrders: Order[] = [];
         if (type === 'vendor') {
-            // Filter by sellerId if viewing as vendor sales
             filteredOrders = all.filter(o => o.sellerId === user.id);
         } else {
-            // Filter by userId if viewing as client purchases
             filteredOrders = all.filter(o => o.userId === user.id);
         }
         
@@ -81,79 +79,106 @@ export const UserOrdersModal: React.FC<UserOrdersModalProps> = ({ isOpen, onClos
       <div className="fixed inset-0 z-[80] flex items-center justify-center p-4">
         <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
         
-        <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto animate-fade-in-up">
-          <div className="flex justify-between items-center mb-6">
-              <div>
-                  <h2 className="text-xl font-bold text-gray-800">
-                      {type === 'vendor' ? 'Vendas Realizadas' : 'Histórico de Pedidos'}
-                  </h2>
-                  <p className="text-sm text-gray-500">{user?.name}</p>
+        <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-2xl p-6 max-h-[90vh] overflow-y-auto animate-fade-in-up">
+          <div className="flex justify-between items-center mb-6 border-b border-gray-100 pb-4">
+              <div className="flex items-center gap-3">
+                  <div className="bg-orange-100 p-2 rounded-full">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-orange-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-extrabold text-gray-800">
+                        {type === 'vendor' ? 'Minhas Vendas' : 'Meus Pedidos'}
+                    </h2>
+                    <p className="text-xs text-gray-500">Acompanhe o status das suas compras</p>
+                  </div>
               </div>
-              <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-gray-400 hover:text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                   </svg>
               </button>
           </div>
 
           {orders.length === 0 ? (
-              <p className="text-gray-500 text-center py-8">Nenhum registro encontrado para este usuário.</p>
+              <div className="flex flex-col items-center justify-center py-12 text-gray-400">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 mb-4 opacity-30" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                  </svg>
+                  <p className="text-lg font-medium">Você ainda não fez nenhum pedido.</p>
+              </div>
           ) : (
-              <div className="space-y-4">
+              <div className="space-y-6">
                   {orders.map(order => {
                       const date = new Date(order.createdAt);
+                      // Show print button ONLY if status is NOT 'orcamento' (Pending Approval)
+                      const showPrint = order.status !== 'orcamento';
+
                       return (
-                          <div key={order.id} className="border border-gray-200 rounded-lg p-4 hover:border-orange-200 transition-colors">
-                               <div className="flex justify-between items-start mb-2">
-                                  <div>
-                                      <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded ${STATUS_COLORS[order.status]}`}>
-                                          {STATUS_LABELS[order.status]}
+                          <div key={order.id} className="border border-gray-200 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow bg-white">
+                               {/* Card Header */}
+                               <div className="bg-gray-50 px-5 py-3 flex justify-between items-start border-b border-gray-100">
+                                  <div className="flex flex-col">
+                                      <span className="text-xs font-bold text-gray-500 uppercase tracking-wide">Pedido #{order.id.slice(-6)}</span>
+                                      <span className="text-xs font-medium text-gray-800 mt-1 flex items-center gap-2">
+                                          📅 {date.toLocaleDateString()}
+                                          <span className="text-gray-300">|</span>
+                                          ⏰ {date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
                                       </span>
-                                      <p className="text-xs text-gray-400 mt-1">
-                                          {date.toLocaleDateString()} às {date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-                                      </p>
                                   </div>
-                                  <div className="text-right">
-                                      <p className="font-bold text-gray-800">
-                                          {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(order.total)}
-                                      </p>
-                                      <p className="text-[10px] text-gray-400">#{order.id.slice(-4)}</p>
-                                  </div>
+                                  <span className={`text-[10px] uppercase font-bold px-3 py-1 rounded-full border ${STATUS_COLORS[order.status]}`}>
+                                      {STATUS_LABELS[order.status]}
+                                  </span>
                                </div>
                                
-                               <div className="mt-3 pt-3 border-t border-gray-50">
-                                  <ul className="text-xs text-gray-600 space-y-1">
-                                      {order.items.slice(0, 3).map((item, i) => (
-                                          <li key={i} className="flex justify-between">
-                                              <span>{item.quantity}x {item.name}</span>
-                                              <span>R$ {(item.price * item.quantity).toFixed(2)}</span>
-                                          </li>
+                               {/* Items List */}
+                               <div className="p-5">
+                                  <div className="flex flex-col gap-3 mb-4">
+                                      {order.items.map((item, i) => (
+                                          <div key={i} className="flex items-center gap-4 border-b border-gray-50 pb-2 last:border-0 last:pb-0">
+                                              <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center overflow-hidden flex-shrink-0">
+                                                  {item.image ? <img src={item.image} className="w-full h-full object-cover" /> : <span className="text-[8px] text-gray-400">IMG</span>}
+                                              </div>
+                                              <div className="flex-grow">
+                                                  <p className="text-sm font-bold text-gray-800 line-clamp-1">{item.name}</p>
+                                                  <p className="text-xs text-gray-500">{item.quantity}x R$ {item.price.toFixed(2)}</p>
+                                              </div>
+                                              <div className="text-right">
+                                                  <span className="font-bold text-gray-700 text-sm">R$ {(item.price * item.quantity).toFixed(2)}</span>
+                                              </div>
+                                          </div>
                                       ))}
-                                      {order.items.length > 3 && (
-                                          <li className="text-gray-400 italic text-[10px]">+ {order.items.length - 3} itens...</li>
-                                      )}
-                                  </ul>
-                               </div>
+                                  </div>
 
-                               <div className="flex justify-between items-center mt-3 pt-2 border-t border-gray-50">
-                                  <button 
-                                     onClick={() => handlePrint(order)}
-                                     className="text-gray-500 hover:text-gray-900 text-xs flex items-center gap-1 bg-gray-100 px-3 py-1 rounded-full transition-colors"
-                                  >
-                                     📄 Imprimir
-                                  </button>
+                                  <div className="flex justify-between items-center pt-4 border-t border-gray-100">
+                                      <div className="text-sm text-gray-500">
+                                          Total do Pedido: <span className="text-xl font-extrabold text-gray-900 ml-2">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(order.total)}</span>
+                                      </div>
+                                      
+                                      <div className="flex gap-2">
+                                          {showPrint && (
+                                              <button 
+                                                onClick={() => handlePrint(order)}
+                                                className="text-gray-600 hover:text-gray-900 text-xs font-bold flex items-center gap-1 bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded-lg transition-colors"
+                                              >
+                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                                                </svg>
+                                                Imprimir
+                                              </button>
+                                          )}
 
-                                  {onSelectOrder && (
-                                      <button 
-                                          onClick={() => handleManage(order.id)}
-                                          className="text-white bg-orange-600 hover:bg-orange-700 text-xs font-bold px-3 py-1.5 rounded-full shadow-sm flex items-center gap-1"
-                                      >
-                                          Gerenciar Pedido
-                                          <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                                          </svg>
-                                      </button>
-                                  )}
+                                          {onSelectOrder && (
+                                              <button 
+                                                  onClick={() => handleManage(order.id)}
+                                                  className="text-white bg-zinc-900 hover:bg-zinc-700 text-xs font-bold px-4 py-2 rounded-lg shadow-md transition-colors"
+                                              >
+                                                  Gerenciar
+                                              </button>
+                                          )}
+                                      </div>
+                                  </div>
                                </div>
                           </div>
                       );
