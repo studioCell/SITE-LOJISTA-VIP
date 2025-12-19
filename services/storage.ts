@@ -1,4 +1,3 @@
-
 // ... existing imports ...
 import { 
   collection, 
@@ -11,11 +10,11 @@ import {
   getDoc, 
   query, 
   where, 
-  onSnapshot,
-  orderBy,
-  arrayUnion,
-  writeBatch,
-  increment
+  onSnapshot, 
+  orderBy, 
+  arrayUnion, 
+  writeBatch, 
+  increment 
 } from "firebase/firestore";
 import { db, isFirebaseConfigured } from "./firebase";
 import { Product, MOCK_PRODUCTS, Story, User, CartItem, ShopSettings, Order, OrderStatus, Category } from '../types';
@@ -375,6 +374,11 @@ export const getUsers = async (): Promise<User[]> => {
   } catch (error) { return handleFirestoreError(error, []); }
 };
 
+export const getCurrentUser = (): User | null => {
+  const stored = localStorage.getItem(CURRENT_USER_KEY);
+  return stored ? JSON.parse(stored) : null;
+};
+
 export const updateUserPassword = async (userId: string, newPassword: string) => {
   if (!isFirebaseConfigured) return;
   try {
@@ -387,6 +391,12 @@ export const updateUser = async (user: User) => {
   try {
     const { id, ...data } = user;
     await updateDoc(doc(db, USERS_COL, id), sanitizePayload(data));
+    
+    // SYNC WITH LOCAL STORAGE if this is the active user session
+    const session = getCurrentUser();
+    if (session && session.id === user.id) {
+       localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(user));
+    }
   } catch (error) { handleFirestoreError(error); }
 };
 
@@ -485,11 +495,6 @@ export const loginUser = async (identifier: string, password: string, remember: 
   }
 
   return { success: false, message: 'Credenciais inválidas.' };
-};
-
-export const getCurrentUser = (): User | null => {
-  const stored = localStorage.getItem(CURRENT_USER_KEY);
-  return stored ? JSON.parse(stored) : null;
 };
 
 export const logout = () => {

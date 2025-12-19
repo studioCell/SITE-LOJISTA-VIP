@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Button } from './Button';
 import { fetchAddressByCep } from '../services/storage';
@@ -17,7 +18,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLogin, 
   const [showPassword, setShowPassword] = useState(false);
   
   // Form Data
-  const [identifier, setIdentifier] = useState(''); // Phone or Admin User
+  const [identifier, setIdentifier] = useState(''); 
   const [password, setPassword] = useState('');
   const [remember, setRemember] = useState(true);
 
@@ -36,7 +37,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLogin, 
 
   if (!isOpen) return null;
 
-  // Formatting Helpers
   const formatCPF = (value: string) => {
     return value
       .replace(/\D/g, '')
@@ -44,14 +44,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLogin, 
       .replace(/(\d{3})(\d)/, '$1.$2')
       .replace(/(\d{3})(\d{1,2})/, '$1-$2')
       .replace(/(-\d{2})\d+?$/, '$1');
-  };
-
-  const formatDate = (value: string) => {
-    return value
-      .replace(/\D/g, '')
-      .replace(/(\d{2})(\d)/, '$1/$2')
-      .replace(/(\d{2})(\d)/, '$1/$2')
-      .replace(/(\d{4})\d+?$/, '$1');
   };
 
   const handleCepChange = (val: string) => {
@@ -96,13 +88,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLogin, 
         setLoading(false);
       }
     } else {
-      // Validation
       if (regPass.length !== 6) {
         setError('A senha deve ter exatamente 6 dígitos.');
         return;
       }
-      if (!regStreet || !regNumber) {
-          setError('Preencha o endereço completo.');
+      if (!regStreet || !regNumber || !regBirthDate) {
+          setError('Preencha o endereço completo e a data de nascimento.');
           return;
       }
       
@@ -152,7 +143,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLogin, 
       <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={onClose} />
       
       <div className="relative bg-zinc-900 border border-zinc-800 rounded-xl shadow-2xl w-full max-w-sm p-8 overflow-hidden animate-scale-up max-h-[90vh] overflow-y-auto">
-        {/* Close Button */}
         <button 
           onClick={onClose} 
           className="absolute top-4 right-4 text-gray-400 hover:text-white bg-zinc-800 hover:bg-zinc-700 rounded-full p-1 transition-colors"
@@ -176,7 +166,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLogin, 
           <p className="text-sm text-gray-400 mt-1">Acesse sua conta para ver suas compras</p>
         </div>
 
-        {/* Tabs */}
         <div className="flex border-b border-zinc-700 mb-6">
           <button 
             className={`flex-1 pb-2 text-sm font-bold transition-colors ${mode === 'login' ? 'text-orange-500 border-b-2 border-orange-500' : 'text-zinc-500 hover:text-gray-300'}`}
@@ -277,17 +266,17 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLogin, 
                         className="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg focus:ring-2 focus:ring-orange-600 outline-none text-sm text-white placeholder-gray-500"
                         placeholder="000.000.000-00"
                         maxLength={14}
+                        required
                       />
                   </div>
                   <div className="flex-1">
-                      <label className="block text-xs font-bold text-gray-400 mb-1">Nascimento</label>
+                      <label className="block text-xs font-bold text-gray-400 mb-1">Nascimento *</label>
                       <input 
-                        type="text" 
+                        type="date" 
                         value={regBirthDate}
-                        onChange={(e) => setRegBirthDate(formatDate(e.target.value))}
+                        onChange={(e) => setRegBirthDate(e.target.value)}
                         className="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg focus:ring-2 focus:ring-orange-600 outline-none text-sm text-white placeholder-gray-500"
-                        placeholder="DD/MM/AAAA"
-                        maxLength={10}
+                        required
                       />
                   </div>
               </div>
@@ -351,7 +340,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLogin, 
                       />
                   </div>
                   <div className="flex-1">
-                      <label className="block text-xs font-bold text-gray-400 mb-1">Comp. (Opcional)</label>
+                      <label className="block text-xs font-bold text-gray-400 mb-1">Comp.</label>
                       <input 
                         value={regComplement}
                         onChange={e => setRegComplement(e.target.value)}

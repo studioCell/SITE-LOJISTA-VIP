@@ -594,10 +594,11 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   const handleDispatchOrder = async (order: Order) => { await updateOrder({ ...order, status: 'transporte', history: [...(order.history||[]), {status:'transporte', timestamp:Date.now()}] }); showNotification('Despachado!'); setOrderStatusFilter('transporte'); };
   
   const handleSaveTracking = async (order: Order) => { 
-      if(trackingInput[order.id]) { 
-          await updateOrder({ ...order, trackingCode: trackingInput[order.id] }); 
+      const code = trackingInput[order.id];
+      if (code !== undefined) {
+          await updateOrder({ ...order, trackingCode: code }); 
           showNotification('Rastreio salvo'); 
-      } 
+      }
   };
   
   const handleSendTrackingWhatsapp = (order: Order) => { 
@@ -707,7 +708,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
           </div>
       )}
 
-      {/* ... (Tabs and Dashboard Render - Unchanged) ... */}
+      {/* Tabs and Dashboard Render */}
       
       <div className="flex border-b border-gray-100 overflow-x-auto bg-zinc-900 text-white scrollbar-hide">
         {[{ id: 'dashboard', label: '📊 Dashboard', show: true }, { id: 'orders', label: '💰 Minhas Vendas', show: true }, { id: 'products', label: '📦 Produtos', show: !isVendor }, { id: 'clients', label: '👥 Clientes', show: !isVendor }, { id: 'vendors', label: '👔 Vendedores', show: !isVendor }, { id: 'abandoned', label: '🛒 Carrinhos Abandonados', show: !isVendor }, { id: 'settings', label: '⚙️ Configurações', show: !isVendor }].filter(t => t.show).map(tab => (
@@ -716,11 +717,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       </div>
       <div className="p-6">
         
-        {/* ... (Dashboard Tab Content) ... */}
+        {/* Dashboard Tab Content */}
         {activeTab === 'dashboard' && (
             <div className="animate-fade-in space-y-6">
-                {/* ... (Existing Dashboard code) ... */}
-                {/* Re-insert dashboard metrics here to complete the component */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     <StatCard title="Aprovação Pendente" value={dashboardData.pendingApproval} icon={<span className="text-2xl">⏳</span>} colorClass="bg-gray-500 text-gray-300" subText="Orçamentos" />
                     <StatCard title="Aguard. Pagamento" value={dashboardData.pendingPayment} icon={<span className="text-2xl">💰</span>} colorClass="bg-yellow-500 text-yellow-300" />
@@ -757,11 +756,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
             </div>
         )}
 
-        {/* ... (Orders, Products, Clients, Vendors, Abandoned, Settings Tabs remain the same) ... */}
+        {/* Orders Tab Content */}
         {activeTab === 'orders' && (
             <div className="animate-fade-in">
                 <div className="flex flex-col md:flex-row justify-between items-center gap-4 mb-6">
-                    {/* ... (Filters and Search code) ... */}
                     <div className="flex gap-2 overflow-x-auto pb-2 w-full md:w-auto scrollbar-hide">
                         {['all', 'orcamento', 'pagamento_pendente', 'preparacao', 'transporte', 'entregue'].map(status => (
                             <button 
@@ -804,7 +802,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                             <div className={`p-4 cursor-pointer hover:bg-white/5 transition-colors ${STATUS_BG[order.status]}`} onClick={() => setExpandedOrderId(isExpanded ? null : order.id)}>
                                 <div className="flex justify-between items-start mb-2">
                                     <div><h4 className="font-extrabold text-lg text-white">{order.userName}</h4><p className={`text-xs font-bold uppercase ${STATUS_STYLES[order.status]?.split(' ')[1]}`}>{STATUS_LABELS[order.status]}</p></div>
-                                    <div className="text-right"><span className="text-2xl font-bold text-white block">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(order.total)}</span><span className="text-xs text-gray-400">#{order.id.slice(-6)}</span></div>
+                                    <div className="text-right"><span className="text-2xl font-bold text-white block">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(order.total)}</span><span className="text-xs text-gray-400">#{order.id}</span></div>
                                 </div>
                                 <div className="flex justify-between items-center text-sm text-gray-400">
                                     <div className="flex items-center gap-2">
@@ -867,6 +865,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                                                     className="bg-transparent text-white text-xs px-2 py-1 w-40 outline-none placeholder-gray-500" 
                                                     value={trackingVal} 
                                                     onChange={(e) => setTrackingInput({...trackingInput, [order.id]: e.target.value})} 
+                                                    onBlur={() => handleSaveTracking(order)}
                                                     onClick={(e) => e.stopPropagation()} 
                                                 />
                                                 {/* Actions appear only if there is input */}
@@ -945,12 +944,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
             </div>
         )}
         
-        {/* ... (Other Tabs remain unchanged) ... */}
-        
         {/* ... (Modals remain unchanged) ... */}
         {activeTab === 'products' && !isVendor && (
             <div className="space-y-6">
-                {/* ... existing product code ... */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                    <div className="bg-zinc-800 p-4 rounded-xl border border-zinc-700 text-white"><p className="text-xs text-gray-400 uppercase font-bold">Total</p><p className="text-2xl font-bold">{totalProducts}</p></div>
                    <div className="bg-zinc-800 p-4 rounded-xl border border-zinc-700 text-white"><p className="text-xs text-green-400 uppercase font-bold">Ativos</p><p className="text-2xl font-bold">{activeProducts}</p></div>
@@ -960,13 +956,11 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                <div className="bg-zinc-900 p-4 rounded-xl border border-zinc-800">
                    <div className="flex flex-col md:flex-row justify-between items-center gap-4 mb-4">
                        <div className="flex gap-2 w-full md:w-auto">
-                           {/* Category Select */}
                            <select value={filterCategory} onChange={(e) => setFilterCategory(e.target.value)} className="bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white focus:ring-2 focus:ring-orange-600 focus:border-transparent outline-none">
                                <option value="all">Todas as Categorias</option>
                                {categories.map(cat => <option key={cat.id} value={cat.name}>{cat.name}</option>)}
                            </select>
                            
-                           {/* Search Input */}
                            <div className="relative flex-grow">
                                <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
                                    <svg className="w-4 h-4 text-gray-400" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 20 20">
@@ -1012,7 +1006,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
         {/* CLIENTS */}
         {activeTab === 'clients' && !isVendor && (
             <div className="bg-zinc-900 rounded-xl overflow-hidden border border-zinc-800 shadow-xl">
-               {/* ... existing client table ... */}
                <div className="overflow-x-auto">
                     <table className="min-w-full divide-y divide-zinc-800">
                         <thead className="bg-black">
@@ -1073,10 +1066,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
             </div>
         )}
 
-        {/* ... (Vendors, Abandoned, Settings Tabs remain same) ... */}
+        {/* Vendors */}
         {activeTab === 'vendors' && !isVendor && (
             <div className="space-y-6">
-                {/* ... (Existing Vendor Code) ... */}
                 <div className="bg-zinc-900 p-5 rounded-xl border border-zinc-800 shadow-lg">
                     <h3 className="text-white font-bold mb-4 flex items-center gap-2">
                         <span className="bg-orange-600 w-2 h-6 rounded-full"></span>
@@ -1138,7 +1130,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
         {activeTab === 'abandoned' && !isVendor && (
             <div className="space-y-4 animate-fade-in">
-                {/* ... (Existing Abandoned code) ... */}
                 {abandonedCarts.length === 0 ? (
                     <div className="text-center py-20 bg-zinc-900 rounded-xl border border-zinc-800 text-gray-500">
                         <p className="text-lg">Nenhum carrinho abandonado no momento.</p>
@@ -1177,7 +1168,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
         {activeTab === 'settings' && !isVendor && (
             <div className="animate-fade-in bg-zinc-900 rounded-xl p-6 border border-zinc-800 shadow-xl max-w-2xl mx-auto text-white">
-               {/* ... (Existing Settings code) ... */}
                 <h3 className="text-xl font-bold mb-6 text-white border-b border-zinc-700 pb-2">Configurações da Loja</h3>
                 
                 <div className="space-y-4">
@@ -1218,7 +1208,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       <ProductFormModal isOpen={isFormOpen} onClose={() => setIsFormOpen(false)} productToEdit={editingProduct} onSave={handleFormSave} categories={categories} />
       <PrintPreviewModal isOpen={!!previewOrder} onClose={() => setPreviewOrder(null)} order={previewOrder} settings={settings} logo={logoUrl} isAdmin={true} />
       
-      {/* Client Modals */}
       <ClientEditModal 
         isOpen={!!editingUser && activeTab === 'clients'} 
         user={editingUser} 

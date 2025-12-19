@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Product, CartItem, Story, User, ShopSettings, Order, Category } from './types';
 import { 
@@ -41,6 +42,7 @@ import { SalesArea } from './components/SalesArea';
 import { UserOrdersModal } from './components/UserOrdersModal';
 import { ProductFormModal } from './components/ProductFormModal';
 import { OrderSuccessModal } from './components/OrderSuccessModal';
+import { UserProfileModal } from './components/UserProfileModal';
 
 const NOTIFICATION_SOUND = "data:audio/mp3;base64,//uQxAAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq//uQxAAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq//uQxAAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq//uQxAAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq//uQxAAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq//uQxAAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq//uQxAAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq//uQxAAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq//uQxAAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq//uQxAAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq//uQxAAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq//uQxAAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq//uQxAAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq//uQxAAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq//uQxAAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq//uQxAAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq//uQxAAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq//uQxAAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq//uQxAAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq//uQxAAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq//uQxAAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq//uQxAAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq//uQxAAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq//uQxAAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq");
 
@@ -58,6 +60,7 @@ function App() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isSalesAreaOpen, setIsSalesAreaOpen] = useState(false);
   const [isUserOrdersOpen, setIsUserOrdersOpen] = useState(false); 
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [view, setView] = useState<'home' | 'admin'>('home');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [heroImage, setHeroImage] = useState<string>('');
@@ -126,7 +129,6 @@ function App() {
 
   useEffect(() => {
     if (!currentUser || (!currentUser.isAdmin && !currentUser.isVendor)) return;
-    document.title = "Lojista Vip";
     let isFirstLoad = true;
     const unsubscribeOrders = subscribeToOrders((allOrders) => {
         if (allOrders.length === 0) return;
@@ -142,23 +144,14 @@ function App() {
                 try {
                     const audio = new Audio(NOTIFICATION_SOUND);
                     audio.volume = 0.5;
-                    audio.play().catch(e => console.log("Audio play blocked", e));
-                } catch (e) {
-                    console.error("Sound error", e);
-                }
-                document.title = "🔔 NOVO PEDIDO! - Lojista Vip";
+                    audio.play();
+                } catch (e) {}
                 if ("Notification" in window && Notification.permission === "granted") {
-                    const notif = new Notification("💰 Novo Pedido Recebido!", {
+                    new Notification("💰 Novo Pedido Recebido!", {
                         body: `Cliente: ${newestOrder.userName}\nValor: R$ ${newestOrder.total.toFixed(2)}`,
                         icon: logo || undefined,
                         tag: newestOrder.id 
                     });
-                    notif.onclick = () => {
-                        window.focus();
-                        setView('admin'); 
-                        document.title = "Lojista Vip"; 
-                        notif.close();
-                    };
                 }
             }
         }
@@ -166,48 +159,72 @@ function App() {
     return () => unsubscribeOrders();
   }, [currentUser, logo]); 
 
-  useEffect(() => {
-      if (view === 'admin') {
-          document.title = "Painel Administrativo - Lojista Vip";
-      } else {
-          document.title = "Lojista Vip";
-      }
-  }, [view]);
-
-  useEffect(() => {
-    if (products.length > 0) {
-      const params = new URLSearchParams(window.location.search);
-      const sharedProductId = params.get('productId');
-      if (sharedProductId) {
-        const product = products.find(p => p.id === sharedProductId);
-        if (product) {
-          setViewingProduct(product);
-          window.history.replaceState({}, '', window.location.pathname);
-        }
-      }
+  const handleCheckout = async (
+      extras: { shippingTarget: 'user' | 'end_customer'; endCustomer?: any },
+      adminOverride?: { user: User, address: any }
+  ) => {
+    if (!currentUser && !adminOverride) {
+      setIsCartOpen(false); 
+      setIsAuthOpen(true);
+      return;
     }
-  }, [products]);
+    
+    const subtotal = cart.reduce((acc, item) => acc + (item.price * item.quantity), 0);
+    const buyer = adminOverride ? adminOverride.user : currentUser!;
+    
+    // Determine address details based on target
+    let orderDetails: any = {
+      userName: buyer.name,
+      userPhone: buyer.phone || '',
+      userCpf: buyer.cpf || '',
+      userBirthDate: buyer.birthDate || '',
+      userCep: buyer.cep || '',
+      userCity: buyer.city || '',
+      userStreet: buyer.street || '',
+      userNumber: buyer.number || '',
+      userDistrict: buyer.district || '',
+      userComplement: buyer.complement || ''
+    };
 
-  useEffect(() => {
-    if (currentUser && !currentUser.isAdmin && !currentUser.isVendor) {
-      saveUserCart(currentUser.id, cart);
+    if (extras.shippingTarget === 'end_customer' && extras.endCustomer) {
+      orderDetails = {
+        userName: `${buyer.name} (PARA: ${extras.endCustomer.name})`,
+        userPhone: buyer.phone || '', // Keep buyer phone for main contact
+        userCpf: extras.endCustomer.cpf,
+        userBirthDate: extras.endCustomer.birthDate,
+        userCep: extras.endCustomer.cep,
+        userCity: extras.endCustomer.city,
+        userStreet: extras.endCustomer.street,
+        userNumber: extras.endCustomer.number,
+        userDistrict: extras.endCustomer.district,
+        userComplement: extras.endCustomer.complement
+      };
     }
-  }, [cart, currentUser]);
 
-  useEffect(() => {
-    setHeroImageError(false);
-  }, [heroImage]);
+    const newOrder: Order = {
+      id: Date.now().toString(), 
+      userId: buyer.id,
+      ...orderDetails,
+      items: [...cart],
+      total: subtotal,
+      discount: 0,
+      shippingCost: 0,
+      shippingTarget: extras.shippingTarget,
+      status: 'orcamento', 
+      createdAt: Date.now(),
+      sellerId: (currentUser?.isVendor || currentUser?.isAdmin) ? currentUser.id : undefined,
+      history: [{ status: 'orcamento', timestamp: Date.now() }]
+    };
 
-  const performTransition = (action: () => void) => {
-    setIsTransitioning(true);
-    if (productAnchorRef.current) {
-        const y = productAnchorRef.current.getBoundingClientRect().top + window.scrollY - 100;
-        window.scrollTo({ top: y, behavior: 'smooth' });
+    try {
+      await saveOrder(newOrder);
+      setCart([]); 
+      setLastOrderForWhatsapp(newOrder);
+      setIsCartOpen(false);
+      setShowOrderSuccess(true);
+    } catch (error) {
+      alert("Erro ao registrar pedido.");
     }
-    setTimeout(() => {
-        action();
-        setIsTransitioning(false);
-    }, 2000); 
   };
 
   const addToCart = (product: Product, quantity: number = 1, note: string = '') => {
@@ -239,62 +256,6 @@ function App() {
     }));
   };
 
-  const handleCheckout = async (
-      extras: { wantsInvoice: boolean; wantsInsurance: boolean; shippingMethod: string },
-      customerOverride?: { user: User, address: any }
-  ) => {
-    if (!currentUser) {
-      setIsCartOpen(false); 
-      setIsAuthOpen(true);
-      return;
-    }
-    const subtotal = cart.reduce((acc, item) => acc + (item.price * item.quantity), 0);
-    const total = subtotal; 
-    const targetUser = customerOverride ? customerOverride.user : currentUser;
-    const targetAddress = customerOverride ? customerOverride.address : null;
-
-    if (targetUser && cart.length > 0) {
-      const newOrder: Order = {
-        id: Date.now().toString(), 
-        userId: targetUser.id || 'unknown',
-        userName: targetUser.name || 'Cliente',
-        userPhone: targetUser.phone || '',
-        userCpf: targetUser.cpf || '',
-        userBirthDate: targetUser.birthDate || '',
-        userCep: targetAddress?.cep || targetUser.cep || '',
-        userCity: targetAddress?.city || targetUser.city || '',
-        userStreet: targetAddress?.street || targetUser.street || '', 
-        userNumber: targetAddress?.number || targetUser.number || '',
-        userDistrict: targetAddress?.district || targetUser.district || '',
-        userComplement: targetUser.complement || '', 
-        items: [...cart],
-        total: total || 0,
-        discount: 0,
-        shippingCost: 0,
-        wantsInvoice: !!extras.wantsInvoice,
-        wantsInsurance: !!extras.wantsInsurance,
-        shippingMethod: extras.shippingMethod || '',
-        status: 'orcamento', 
-        createdAt: Date.now(),
-        trackingCode: '', 
-        sellerId: (currentUser.isVendor || currentUser.isAdmin) ? currentUser.id : null as any,
-        history: [{ status: 'orcamento', timestamp: Date.now() }]
-      };
-
-      try {
-        await saveOrder(newOrder);
-        setCart([]); 
-        setLastOrderForWhatsapp(newOrder);
-        setIsCartOpen(false);
-        setShowOrderSuccess(true);
-      } catch (error) {
-        console.error("Erro ao salvar pedido:", error);
-        alert("Houve um erro ao registrar o pedido no sistema. Tente novamente.");
-        return; 
-      }
-    }
-  };
-
   const handleContact = () => {
     window.open(`https://api.whatsapp.com/send?phone=5562992973853`, '_blank');
   };
@@ -303,12 +264,8 @@ function App() {
     const result = await loginUser(u, p, remember);
     if (result.success && result.user) {
       setCurrentUser(result.user);
-      if (result.user.savedCart) {
-        setCart(result.user.savedCart);
-      }
-      if (result.user.isAdmin || result.user.isVendor) {
-        setView('admin'); 
-      }
+      if (result.user.savedCart) setCart(result.user.savedCart);
+      if (result.user.isAdmin || result.user.isVendor) setView('admin');
       setIsAuthOpen(false);
     }
     return result;
@@ -454,6 +411,11 @@ function App() {
           setCurrentPage(newPage);
       });
   };
+
+  const handleUpdateProfile = (updated: User) => {
+      setCurrentUser(updated);
+  };
+
   const isStaff = currentUser?.isAdmin || currentUser?.isVendor;
   const filteredProducts = useMemo(() => {
       let result = products.filter(p => p.available);
@@ -505,6 +467,18 @@ function App() {
       .slice(0, 3);
   };
 
+  const performTransition = (action: () => void) => {
+    setIsTransitioning(true);
+    if (productAnchorRef.current) {
+        const y = productAnchorRef.current.getBoundingClientRect().top + window.scrollY - 100;
+        window.scrollTo({ top: y, behavior: 'smooth' });
+    }
+    setTimeout(() => {
+        action();
+        setIsTransitioning(false);
+    }, 2000); 
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -544,6 +518,8 @@ function App() {
         onLogoutClick={handleLogout}
         onMenuClick={() => setIsMenuOpen(true)}
         onAdminClick={() => setView('admin')} 
+        onProfileClick={() => setIsProfileOpen(true)}
+        onMyOrdersClick={() => setIsUserOrdersOpen(true)}
         logo={logo}
       />
       <main className="flex-grow max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
@@ -755,11 +731,18 @@ function App() {
             setIsUserOrdersOpen(true);
         } : undefined}
         isAdmin={!!currentUser?.isAdmin || !!currentUser?.isVendor}
+        currentUser={currentUser}
       />
       <UserOrdersModal 
         isOpen={isUserOrdersOpen}
         onClose={() => setIsUserOrdersOpen(false)}
         user={currentUser}
+      />
+      <UserProfileModal 
+        isOpen={isProfileOpen}
+        onClose={() => setIsProfileOpen(false)}
+        user={currentUser}
+        onUpdate={handleUpdateProfile}
       />
       <SalesArea 
         isOpen={isSalesAreaOpen}

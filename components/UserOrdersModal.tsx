@@ -112,15 +112,13 @@ export const UserOrdersModal: React.FC<UserOrdersModalProps> = ({ isOpen, onClos
               <div className="space-y-6">
                   {orders.map(order => {
                       const date = new Date(order.createdAt);
-                      // Show print button ONLY if status is NOT 'orcamento' (Pending Approval)
                       const showPrint = order.status !== 'orcamento';
 
                       return (
                           <div key={order.id} className="border border-gray-200 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow bg-white">
-                               {/* Card Header */}
                                <div className="bg-gray-50 px-5 py-3 flex justify-between items-start border-b border-gray-100">
                                   <div className="flex flex-col">
-                                      <span className="text-xs font-bold text-gray-500 uppercase tracking-wide">Pedido #{order.id.slice(-6)}</span>
+                                      <span className="text-xs font-bold text-gray-500 uppercase tracking-wide">Pedido #{order.id}</span>
                                       <span className="text-xs font-medium text-gray-800 mt-1 flex items-center gap-2">
                                           📅 {date.toLocaleDateString()}
                                           <span className="text-gray-300">|</span>
@@ -132,8 +130,42 @@ export const UserOrdersModal: React.FC<UserOrdersModalProps> = ({ isOpen, onClos
                                   </span>
                                </div>
                                
-                               {/* Items List */}
                                <div className="p-5">
+                                  {/* Tracking Info for Clients */}
+                                  {order.trackingCode && (
+                                      <div className="mb-4 p-3 bg-indigo-50 border border-indigo-100 rounded-lg animate-fade-in">
+                                          <div className="flex items-center gap-2 mb-2">
+                                              <span className="text-lg">🚚</span>
+                                              <p className="text-xs font-bold text-indigo-700 uppercase tracking-wider">Acompanhe seu pedido</p>
+                                          </div>
+                                          <div className="flex items-center justify-between gap-2">
+                                              <span className="text-sm font-medium text-gray-700 truncate flex-1 bg-white px-2 py-1.5 rounded border border-indigo-200">
+                                                  {order.trackingCode}
+                                              </span>
+                                              {order.trackingCode.startsWith('http') ? (
+                                                  <a 
+                                                    href={order.trackingCode} 
+                                                    target="_blank" 
+                                                    rel="noopener noreferrer"
+                                                    className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-4 py-2 rounded shadow-md transition-colors"
+                                                  >
+                                                      Abrir Link
+                                                  </a>
+                                              ) : (
+                                                  <button 
+                                                    onClick={() => {
+                                                        navigator.clipboard.writeText(order.trackingCode!);
+                                                        alert('Código copiado para a área de transferência!');
+                                                    }}
+                                                    className="bg-indigo-100 hover:bg-indigo-200 text-indigo-700 text-xs font-bold px-4 py-2 rounded transition-colors border border-indigo-300"
+                                                  >
+                                                      Copiar Código
+                                                  </button>
+                                              )}
+                                          </div>
+                                      </div>
+                                  )}
+
                                   <div className="flex flex-col gap-3 mb-4">
                                       {order.items.map((item, i) => (
                                           <div key={i} className="flex items-center gap-4 border-b border-gray-50 pb-2 last:border-0 last:pb-0">

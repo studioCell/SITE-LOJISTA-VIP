@@ -9,6 +9,8 @@ interface HeaderProps {
   onLogoutClick: () => void;
   onMenuClick: () => void;
   onAdminClick: () => void;
+  onProfileClick: () => void;
+  onMyOrdersClick: () => void;
   logo: string;
 }
 
@@ -20,6 +22,8 @@ export const Header: React.FC<HeaderProps> = ({
   onLogoutClick,
   onMenuClick,
   onAdminClick,
+  onProfileClick,
+  onMyOrdersClick,
   logo
 }) => {
   return (
@@ -36,19 +40,37 @@ export const Header: React.FC<HeaderProps> = ({
                 LV
               </div>
             )}
-            <div>
+            <div className="hidden sm:block">
               <h1 className="text-xl font-bold text-white leading-tight">Lojista Vip</h1>
               <p className="text-xs text-gray-400">Toque para ver categorias</p>
             </div>
           </div>
 
           {/* Actions Area */}
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 sm:gap-4">
             
             {currentUser ? (
-               <div className="flex items-center gap-3">
+               <div className="flex items-center gap-2 sm:gap-3">
+                 <button 
+                    onClick={onMyOrdersClick}
+                    className="hidden md:flex items-center gap-1.5 px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-white rounded-lg text-xs font-bold transition-colors border border-zinc-700"
+                 >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-orange-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+                    </svg>
+                    Meus Pedidos
+                 </button>
+
                  <div className="flex flex-col items-end">
-                   <span className="text-sm font-bold text-white leading-tight">{currentUser.name.split(' ')[0]}</span>
+                   <button 
+                    onClick={onProfileClick}
+                    className="text-sm font-bold text-white leading-tight hover:text-orange-400 transition-colors flex items-center gap-1"
+                   >
+                     {currentUser.name.split(' ')[0]}
+                     <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                     </svg>
+                   </button>
                    {(currentUser.isAdmin || currentUser.isVendor) && (
                      <button 
                         onClick={onAdminClick}
@@ -74,7 +96,7 @@ export const Header: React.FC<HeaderProps> = ({
                 onClick={onLoginClick}
                 className="text-sm font-bold text-orange-500 hover:text-orange-400 bg-zinc-800 px-3 py-1.5 rounded border border-zinc-700"
               >
-                Fazer Login
+                Entrar
               </button>
             )}
 

@@ -8,8 +8,8 @@ export interface Product {
   category: string;
   available: boolean; 
   createdAt?: number;
-  views?: number; // New: Track popularity
-  isPromo?: boolean; // New: Promotional status
+  views?: number;
+  isPromo?: boolean;
 }
 
 export interface CartItem extends Product {
@@ -22,22 +22,17 @@ export interface User {
   name: string;
   username?: string; 
   phone?: string; 
-  
-  // Personal Info
   cpf?: string;
   birthDate?: string;
-
-  // Address Fields
   cep?: string;
   city?: string;
   street?: string;
   number?: string;
   district?: string;
   complement?: string;
-
   password?: string;
   isAdmin: boolean;
-  isVendor?: boolean; // New: Vendor Role
+  isVendor?: boolean;
   savedCart?: CartItem[];
   createdAt?: number;
 }
@@ -54,8 +49,8 @@ export interface Story {
 }
 
 export interface ShopSettings {
-  shopName?: string; // New
-  minOrderValue?: number; // New
+  shopName?: string;
+  minOrderValue?: number;
   aboutUs: string;
   shippingPolicy: string;
   warrantyPolicy: string;
@@ -86,37 +81,31 @@ export interface Order {
   userId: string;
   userName: string;
   userPhone: string;
-  
-  // Personal Info on Order Snapshot
   userCpf?: string;
   userBirthDate?: string;
-
-  // Address Details
   userCep?: string;
   userCity?: string;
   userStreet?: string;
   userNumber?: string;
   userDistrict?: string;
-  userComplement?: string; // New: Address Complement
-
+  userComplement?: string;
+  
+  // Dropshipping support
+  shippingTarget: 'user' | 'end_customer';
+  
   items: CartItem[];
   total: number;
   discount?: number; 
   shippingCost?: number; 
-  shippingMethod?: string; // e.g., 'Motoboy', 'Correios'
-  
-  // Fees
+  shippingMethod?: string;
   wantsInvoice?: boolean; 
   wantsInsurance?: boolean; 
-
-  // Documents
-  invoicePdf?: string; // Base64 of PDF
-
+  invoicePdf?: string;
   status: OrderStatus;
   createdAt: number;
-  deliveredAt?: number; // Timestamp when status changed to delivered
+  deliveredAt?: number;
   trackingCode?: string;
-  sellerId?: string; // New: Track which vendor made the sale
+  sellerId?: string;
   history: { status: OrderStatus; timestamp: number }[];
 }
 
