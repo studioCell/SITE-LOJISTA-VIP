@@ -77,7 +77,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart, 
           <Button 
             onClick={(e) => {
               e.stopPropagation();
-              onAddToCart(product);
+              onClick(product); // Modificado para abrir detalhes em vez de add no carrinho
             }}
             className={`!rounded-lg !px-3 !py-2 shadow-orange-500/20 transition-transform ${isStaff ? '!bg-zinc-800 hover:!bg-zinc-900' : '!bg-green-600 hover:!bg-green-700'}`}
             aria-label="Comprar"

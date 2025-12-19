@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Order, CartItem, Product } from '../types';
 import { Button } from './Button';
@@ -21,13 +20,12 @@ export const OrderEditModal: React.FC<OrderEditModalProps> = ({ isOpen, onClose,
     invoicePercent: 6, insuranceAmount: 0,
     wantsInvoice: false, wantsInsurance: false
   });
-  const [isAddingMode, setIsAddingMode] = useState(false);
   const [allProducts, setAllProducts] = useState<Product[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [loadingCep, setLoadingCep] = useState(false);
 
   useEffect(() => {
-    if (order) {
+    if (order && isOpen) {
       setItems(JSON.parse(JSON.stringify(order.items)));
       setAddress({
         cep: order.userCep || '', street: order.userStreet || '', number: order.userNumber || '',
@@ -60,6 +58,40 @@ export const OrderEditModal: React.FC<OrderEditModalProps> = ({ isOpen, onClose,
       if (data) setAddress(prev => ({ ...prev, street: data.street, district: data.district, city: data.city }));
     }
   };
+
+  // Item Management Functions
+  const updateItemQty = (productId: string, delta: number) => {
+    setItems(prev => prev.map(item => {
+        if (item.id === productId) {
+            const newQty = item.quantity + delta;
+            return newQty > 0 ? { ...item, quantity: newQty } : item;
+        }
+        return item;
+    }));
+  };
+
+  const updateItemNote = (productId: string, note: string) => {
+    setItems(prev => prev.map(item => item.id === productId ? { ...item, note } : item));
+  };
+
+  const removeItem = (productId: string) => {
+    setItems(prev => prev.filter(item => item.id !== productId));
+  };
+
+  const addNewItem = (product: Product) => {
+    setItems(prev => {
+        const existing = prev.find(i => i.id === product.id);
+        if (existing) {
+            return prev.map(i => i.id === product.id ? { ...i, quantity: i.quantity + 1 } : i);
+        }
+        return [...prev, { ...product, quantity: 1, note: '' }];
+    });
+    setSearchTerm(''); // Clear search after adding
+  };
+
+  const filteredProducts = allProducts.filter(p => 
+    p.available && p.name.toLowerCase().includes(searchTerm.toLowerCase())
+  ).slice(0, 5);
 
   const handleSave = () => {
     const subtotal = items.reduce((acc, item) => acc + (item.price * item.quantity), 0);
@@ -99,9 +131,17 @@ export const OrderEditModal: React.FC<OrderEditModalProps> = ({ isOpen, onClose,
     <div className="fixed inset-0 z-[80] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
       <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-2xl p-6 max-h-[90vh] overflow-y-auto">
-        <h2 className="text-2xl font-bold mb-6">Editar Pedido #{order.id.slice(-6)}</h2>
+        <div className="flex justify-between items-center mb-6">
+            <h2 className="text-2xl font-bold">Editar Pedido #{order.id.slice(-6)}</h2>
+            <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </button>
+        </div>
         
         <div className="space-y-6">
+            {/* 1. Address Section */}
             <div className="bg-zinc-900 p-5 rounded-xl border border-zinc-800 text-white shadow-inner">
               <h3 className="text-xs font-black uppercase mb-4 text-orange-500 tracking-widest">📍 Logística de Entrega</h3>
               <div className="grid grid-cols-12 gap-3">
@@ -112,6 +152,88 @@ export const OrderEditModal: React.FC<OrderEditModalProps> = ({ isOpen, onClose,
               </div>
             </div>
 
+            {/* 2. Items Editing Section */}
+            <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm">
+                <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-xs font-black text-gray-500 uppercase tracking-widest">📦 Itens do Pedido</h3>
+                    <span className="text-[10px] bg-orange-100 text-orange-700 px-2 py-1 rounded font-bold">{items.length} PRODUTOS</span>
+                </div>
+
+                <div className="space-y-4 mb-6">
+                    {items.map((item) => (
+                        <div key={item.id} className="flex flex-col border-b border-gray-100 pb-4 last:border-0 last:pb-0">
+                            <div className="flex items-center gap-3">
+                                <div className="w-12 h-12 bg-gray-100 rounded overflow-hidden flex-shrink-0">
+                                    {item.image && <img src={item.image} className="w-full h-full object-cover" />}
+                                </div>
+                                <div className="flex-grow min-w-0">
+                                    <p className="text-sm font-bold text-gray-800 truncate">{item.name}</p>
+                                    <p className="text-xs text-orange-600 font-bold">R$ {item.price.toFixed(2)} un.</p>
+                                </div>
+                                <div className="flex items-center border-2 border-gray-100 rounded-lg">
+                                    <button onClick={() => updateItemQty(item.id, -1)} className="px-3 py-1 hover:bg-gray-50 text-gray-500">-</button>
+                                    <span className="px-2 text-sm font-black w-8 text-center">{item.quantity}</span>
+                                    <button onClick={() => updateItemQty(item.id, 1)} className="px-3 py-1 hover:bg-gray-50 text-gray-500">+</button>
+                                </div>
+                                <button onClick={() => removeItem(item.id)} className="p-2 text-red-400 hover:text-red-600">
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                    </svg>
+                                </button>
+                            </div>
+                            <div className="mt-2">
+                                <input 
+                                    value={item.note || ''} 
+                                    onChange={e => updateItemNote(item.id, e.target.value)}
+                                    placeholder="Observação deste item..."
+                                    className="w-full bg-gray-50 border border-gray-200 text-xs p-2 rounded outline-none focus:border-orange-500"
+                                />
+                            </div>
+                        </div>
+                    ))}
+                    {items.length === 0 && <p className="text-center py-4 text-gray-400 italic text-sm">O pedido está vazio.</p>}
+                </div>
+
+                {/* ADD NEW PRODUCT UI */}
+                <div className="relative border-t border-gray-100 pt-4">
+                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Adicionar mais produtos</p>
+                    <div className="relative">
+                        <input 
+                            value={searchTerm}
+                            onChange={e => setSearchTerm(e.target.value)}
+                            placeholder="Buscar produto pelo nome..."
+                            className="w-full bg-gray-50 border border-gray-300 p-2.5 rounded-lg text-sm pl-10 outline-none focus:ring-2 focus:ring-orange-500"
+                        />
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 absolute left-3 top-2.5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                        </svg>
+                    </div>
+
+                    {searchTerm && (
+                        <div className="absolute z-10 left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-xl max-h-48 overflow-y-auto">
+                            {filteredProducts.map(p => (
+                                <button 
+                                    key={p.id}
+                                    onClick={() => addNewItem(p)}
+                                    className="w-full text-left p-3 hover:bg-orange-50 flex items-center gap-3 border-b last:border-0"
+                                >
+                                    <div className="w-10 h-10 bg-gray-100 rounded overflow-hidden flex-shrink-0">
+                                        <img src={p.image} className="w-full h-full object-cover" />
+                                    </div>
+                                    <div className="flex-grow">
+                                        <p className="text-sm font-bold text-gray-800 line-clamp-1">{p.name}</p>
+                                        <p className="text-xs text-orange-600 font-bold">R$ {p.price.toFixed(2)}</p>
+                                    </div>
+                                    <span className="text-orange-500 text-xl font-bold">+</span>
+                                </button>
+                            ))}
+                            {filteredProducts.length === 0 && <p className="p-4 text-center text-gray-400 text-xs">Nenhum produto encontrado.</p>}
+                        </div>
+                    )}
+                </div>
+            </div>
+
+            {/* 3. Financials Section */}
             <div className="bg-indigo-50 p-5 rounded-xl border border-indigo-100">
               <h3 className="text-xs font-black text-indigo-900 uppercase mb-4 tracking-widest">🚚 Frete e Taxas Administrativas</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

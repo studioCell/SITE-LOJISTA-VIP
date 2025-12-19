@@ -167,17 +167,8 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({
                </div>
              </div>
 
-             <div className="mb-6">
-               <textarea 
-                 value={note}
-                 onChange={(e) => setNote(e.target.value)}
-                 className="w-full bg-gray-50 border border-gray-200 rounded-lg p-3 text-sm focus:ring-2 focus:ring-orange-500 outline-none resize-none"
-                 placeholder="Inclua algum detalhe para este produto (opcional)"
-                 rows={3}
-               />
-             </div>
-
-             <div className="space-y-3 mb-8">
+             {/* BOTOES PRIMEIRO */}
+             <div className="space-y-3 mb-6">
                <Button 
                  onClick={handleAddToCart}
                  className="w-full !py-4 !text-lg !font-bold !bg-orange-500 hover:!bg-orange-600 shadow-orange-500/20"
@@ -191,6 +182,22 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({
                >
                  Voltar para a loja
                </Button>
+             </div>
+
+             {/* CAIXA DE DETALHES ABAIXO DO BOTAO */}
+             <div className="mb-8">
+               <textarea 
+                 value={note}
+                 onChange={(e) => setNote(e.target.value)}
+                 className="w-full bg-gray-50 border border-gray-200 rounded-lg p-3 text-sm focus:ring-2 focus:ring-orange-500 outline-none resize-none"
+                 placeholder="Inclua algum detalhe para este produto (se preciso)"
+                 rows={3}
+               />
+               <div className="mt-2 bg-orange-100 border-l-4 border-orange-500 p-2 rounded-r-lg">
+                  <p className="text-orange-700 font-bold text-xs">
+                     Coloque a quantidade de cada cor, tamanho ou medida da sua preferência.
+                  </p>
+               </div>
              </div>
 
              <div className="mt-auto pt-6 text-center">

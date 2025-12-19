@@ -168,17 +168,24 @@ export const UserOrdersModal: React.FC<UserOrdersModalProps> = ({ isOpen, onClos
 
                                   <div className="flex flex-col gap-3 mb-4">
                                       {order.items.map((item, i) => (
-                                          <div key={i} className="flex items-center gap-4 border-b border-gray-50 pb-2 last:border-0 last:pb-0">
-                                              <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center overflow-hidden flex-shrink-0">
-                                                  {item.image ? <img src={item.image} className="w-full h-full object-cover" /> : <span className="text-[8px] text-gray-400">IMG</span>}
+                                          <div key={i} className="flex flex-col border-b border-gray-50 pb-2 last:border-0 last:pb-0">
+                                              <div className="flex items-center gap-4">
+                                                  <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center overflow-hidden flex-shrink-0">
+                                                      {item.image ? <img src={item.image} className="w-full h-full object-cover" /> : <span className="text-[8px] text-gray-400">IMG</span>}
+                                                  </div>
+                                                  <div className="flex-grow">
+                                                      <p className="text-sm font-bold text-gray-800 line-clamp-1">{item.name}</p>
+                                                      <p className="text-xs text-gray-500">{item.quantity}x R$ {item.price.toFixed(2)}</p>
+                                                  </div>
+                                                  <div className="text-right">
+                                                      <span className="font-bold text-gray-700 text-sm">R$ {(item.price * item.quantity).toFixed(2)}</span>
+                                                  </div>
                                               </div>
-                                              <div className="flex-grow">
-                                                  <p className="text-sm font-bold text-gray-800 line-clamp-1">{item.name}</p>
-                                                  <p className="text-xs text-gray-500">{item.quantity}x R$ {item.price.toFixed(2)}</p>
-                                              </div>
-                                              <div className="text-right">
-                                                  <span className="font-bold text-gray-700 text-sm">R$ {(item.price * item.quantity).toFixed(2)}</span>
-                                              </div>
+                                              {item.note && (
+                                                <div className="mt-1 ml-16 text-[10px] text-orange-600 font-bold bg-orange-50 px-2 py-1 rounded border border-orange-100">
+                                                  Detalhes: {item.note}
+                                                </div>
+                                              )}
                                           </div>
                                       ))}
                                   </div>

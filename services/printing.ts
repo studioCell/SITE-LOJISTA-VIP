@@ -1,9 +1,7 @@
-
 import { Order, ShopSettings } from '../types';
 
 const formatDisplayDate = (dateStr?: string) => {
   if (!dateStr) return '-';
-  // Se a data vier no formato AAAA-MM-DD (padrão de input date)
   if (dateStr.includes('-')) {
     const [year, month, day] = dateStr.split('-');
     return `${day}/${month}/${year}`;
@@ -36,6 +34,7 @@ export const printOrder = (order: Order, settings: ShopSettings, logoUrl: string
           .total { text-align: right; font-weight: bold; font-size: 14px; margin-top: 10px; }
           .footer { text-align: center; font-size: 10px; margin-top: 20px; }
           .prod-img { width: 40px; height: 40px; object-fit: cover; border: 1px solid #eee; margin-right: 8px; float: left; }
+          .obs-box { font-size: 10px; color: #444; font-weight: bold; margin-top: 2px; }
           @media print {
             .no-print { display: none; }
             body { margin: 0; padding: 0; }
@@ -77,7 +76,7 @@ export const printOrder = (order: Order, settings: ShopSettings, logoUrl: string
                     ${isAdmin && item.image ? `<img src="${item.image}" class="prod-img" />` : ''}
                     <div>
                         ${item.name}
-                        ${item.note ? `<br/><small>Obs: ${item.note}</small>` : ''}
+                        ${item.note ? `<div class="obs-box">OBS: ${item.note}</div>` : ''}
                     </div>
                   </td>
                   <td style="text-align:right">R$ ${(item.price * item.quantity).toFixed(2)}</td>
@@ -148,7 +147,7 @@ export const generateQuotePDF = (order: Order, settings: ShopSettings, logoUrl: 
             td { padding: 15px 8px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
             .prod-img { width: 60px; height: 60px; object-fit: cover; border-radius: 6px; border: 1px solid #eee; }
             .item-name { font-weight: bold; font-size: 14px; color: #111; }
-            .item-desc { font-size: 12px; color: #666; margin-top: 2px; }
+            .item-obs { font-size: 11px; color: #f97316; margin-top: 4px; font-weight: bold; background: #fff7ed; padding: 2px 6px; border-radius: 4px; border-left: 3px solid #f97316; display: inline-block; }
             .price-col { font-family: monospace; font-size: 14px; }
 
             .totals-section { display: flex; justify-content: flex-end; }
@@ -201,7 +200,7 @@ export const generateQuotePDF = (order: Order, settings: ShopSettings, logoUrl: 
             <thead>
               <tr>
                 <th width="10%">Foto</th>
-                <th width="45%">Produto / Descrição</th>
+                <th width="45%">Produto / Detalhes</th>
                 <th width="15%" style="text-align:center">Qtd</th>
                 <th width="15%" style="text-align:right">Unitário</th>
                 <th width="15%" style="text-align:right">Total</th>
@@ -213,7 +212,7 @@ export const generateQuotePDF = (order: Order, settings: ShopSettings, logoUrl: 
                   <td>${item.image ? `<img src="${item.image}" class="prod-img" />` : '-'}</td>
                   <td>
                     <div class="item-name">${item.name}</div>
-                    ${item.note ? `<div class="item-desc">Obs: ${item.note}</div>` : ''}
+                    ${item.note ? `<div class="item-obs">DETALHES: ${item.note}</div>` : ''}
                   </td>
                   <td style="text-align:center">${item.quantity}</td>
                   <td style="text-align:right" class="price-col">R$ ${item.price.toFixed(2)}</td>
@@ -308,7 +307,7 @@ export const generateOrderSummaryPDF = (order: Order, settings: ShopSettings, lo
             td { padding: 15px 8px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
             .prod-img { width: 60px; height: 60px; object-fit: cover; border-radius: 6px; border: 1px solid #eee; }
             .item-name { font-weight: bold; font-size: 14px; color: #111; }
-            .item-desc { font-size: 12px; color: #666; margin-top: 2px; }
+            .item-obs { font-size: 11px; color: #f97316; margin-top: 4px; font-weight: bold; background: #fff7ed; padding: 2px 6px; border-radius: 4px; border-left: 3px solid #f97316; display: inline-block; }
             .price-col { font-family: monospace; font-size: 14px; }
 
             .totals-section { display: flex; justify-content: flex-end; position: relative; }
@@ -379,7 +378,7 @@ export const generateOrderSummaryPDF = (order: Order, settings: ShopSettings, lo
             <thead>
               <tr>
                 <th width="10%">Foto</th>
-                <th width="45%">Produto / Descrição</th>
+                <th width="45%">Produto / Detalhes</th>
                 <th width="15%" style="text-align:center">Qtd</th>
                 <th width="15%" style="text-align:right">Unitário</th>
                 <th width="15%" style="text-align:right">Total</th>
@@ -391,7 +390,7 @@ export const generateOrderSummaryPDF = (order: Order, settings: ShopSettings, lo
                   <td>${item.image ? `<img src="${item.image}" class="prod-img" />` : '-'}</td>
                   <td>
                     <div class="item-name">${item.name}</div>
-                    ${item.note ? `<div class="item-desc">Obs: ${item.note}</div>` : ''}
+                    ${item.note ? `<div class="item-obs">DETALHES: ${item.note}</div>` : ''}
                   </td>
                   <td style="text-align:center">${item.quantity}</td>
                   <td style="text-align:right" class="price-col">R$ ${item.price.toFixed(2)}</td>
@@ -456,7 +455,7 @@ export const generateOrderSummaryPDF = (order: Order, settings: ShopSettings, lo
 };
 
 export const generateReceiptPDF = (order: Order, settings: ShopSettings, logoUrl: string) => {
-    const printWindow = window.open('', '_blank', 'width=800,height=600');
+    const printWindow = window.open('', '_blank', 'width=800,height=800');
     if (!printWindow) return;
 
     const date = new Date().toLocaleDateString();
@@ -470,7 +469,11 @@ export const generateReceiptPDF = (order: Order, settings: ShopSettings, logoUrl
             .header { text-align: center; border-bottom: 2px solid #000; padding-bottom: 20px; margin-bottom: 20px; }
             .title { font-size: 24px; font-weight: bold; text-transform: uppercase; margin: 10px 0; }
             .content { font-size: 16px; line-height: 1.6; }
-            .value { font-weight: bold; font-size: 18px; }
+            .value { font-weight: bold; font-size: 18px; color: #f97316; }
+            .items-table { width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 14px; }
+            .items-table th { text-align: left; border-bottom: 1px solid #ddd; padding: 8px; }
+            .items-table td { padding: 8px; border-bottom: 1px solid #eee; }
+            .obs-text { font-size: 11px; color: #f97316; font-weight: bold; display: block; margin-top: 2px; }
             .footer { margin-top: 40px; border-top: 1px solid #ccc; padding-top: 10px; font-size: 12px; color: #555; text-align: center; }
             .signature { margin-top: 50px; text-align: right; }
             .signature-line { border-top: 1px solid #000; display: inline-block; width: 250px; text-align: center; padding-top: 5px; }
@@ -486,7 +489,30 @@ export const generateReceiptPDF = (order: Order, settings: ShopSettings, logoUrl
           <div class="content">
             <p>Recebemos de <strong>${order.userName}</strong> (CPF: ${order.userCpf || 'Não Informado'})</p>
             <p>A importância de <span class="value">R$ ${order.total.toFixed(2)}</span></p>
-            <p>Referente à compra de produtos na loja <strong>${settings.shopName}</strong>.</p>
+            
+            <table class="items-table">
+               <thead>
+                  <tr>
+                    <th>Item</th>
+                    <th style="text-align:center">Qtd</th>
+                    <th style="text-align:right">Total</th>
+                  </tr>
+               </thead>
+               <tbody>
+                  ${order.items.map(item => `
+                    <tr>
+                      <td>
+                        ${item.name}
+                        ${item.note ? `<span class="obs-text">OBS: ${item.note}</span>` : ''}
+                      </td>
+                      <td style="text-align:center">${item.quantity}</td>
+                      <td style="text-align:right">R$ ${(item.price * item.quantity).toFixed(2)}</td>
+                    </tr>
+                  `).join('')}
+               </tbody>
+            </table>
+
+            <p>Referente à compra dos produtos listados acima na loja <strong>${settings.shopName}</strong>.</p>
             <p>Forma de Pagamento: A Vista / PIX / Cartão</p>
             <p>Data do Pagamento: ${date}</p>
           </div>

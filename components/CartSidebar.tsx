@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { CartItem, User } from '../types';
 import { Button } from './Button';
@@ -230,6 +229,12 @@ export const CartSidebar: React.FC<CartSidebarProps> = ({
                           <p className="text-orange-600 font-bold text-sm">
                             {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.price)}
                           </p>
+                          {/* EXIBIÇÃO DA OBSERVAÇÃO NO CARRINHO */}
+                          {item.note && (
+                            <p className="text-[10px] text-orange-500 font-bold italic mt-1 bg-orange-50 px-2 py-0.5 rounded border border-orange-100">
+                                Obs: {item.note}
+                            </p>
+                          )}
                         </div>
                         <div className="flex items-center justify-between mt-2">
                           <div className="flex items-center border border-gray-200 rounded-md">
@@ -242,6 +247,19 @@ export const CartSidebar: React.FC<CartSidebarProps> = ({
                       </div>
                     </div>
                 ))}
+
+                {/* BOTÃO ESCOLHER MAIS PRODUTOS - Abaixo da lista */}
+                {!isAdmin && !isConfirming && items.length > 0 && (
+                  <button 
+                    onClick={onClose}
+                    className="w-full py-3 text-sm font-bold text-orange-600 border border-orange-200 rounded-xl bg-white hover:bg-orange-50 transition-all flex items-center justify-center gap-2 mt-2 shadow-sm"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    Escolher mais produtos
+                  </button>
+                )}
               </div>
 
               {!isAdmin && (
@@ -459,7 +477,7 @@ export const CartSidebar: React.FC<CartSidebarProps> = ({
                 >
                   {isConfirming ? 'Confirmar e Finalizar' : 'Finalizar Agora'}
                 </Button>
-                
+
                 {isConfirming && (
                     <button 
                         onClick={() => setIsConfirming(false)}
