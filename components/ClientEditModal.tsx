@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { User } from '../types';
 import { Button } from './Button';
@@ -22,18 +21,6 @@ export const ClientEditModal: React.FC<ClientEditModalProps> = ({ isOpen, onClos
   }, [user, isOpen]);
 
   if (!isOpen || !formData) return null;
-
-  const maskPhone = (v: string) => {
-    v = v.replace(/\D/g, '');
-    if (v.length > 11) v = v.slice(0, 11);
-    return v.replace(/^(\d{2})(\d)/g, '($1) $2').replace(/(\d{5})(\d)/, '$1-$2').slice(0, 15);
-  };
-
-  const maskCEP = (v: string) => {
-    v = v.replace(/\D/g, '');
-    if (v.length > 8) v = v.slice(0, 8);
-    return v.replace(/^(\d{5})(\d)/, '$1-$2').slice(0, 9);
-  };
 
   const handleChange = (field: keyof User, value: any) => {
     setFormData(prev => prev ? { ...prev, [field]: value } : null);
@@ -90,7 +77,7 @@ export const ClientEditModal: React.FC<ClientEditModalProps> = ({ isOpen, onClos
                 <label className="block text-sm font-bold text-gray-700 mb-1">Telefone (Login)</label>
                 <input 
                     value={formData.phone} 
-                    onChange={e => handleChange('phone', maskPhone(e.target.value))}
+                    onChange={e => handleChange('phone', e.target.value)}
                     className="w-full border border-gray-300 rounded-lg px-3 py-2 outline-none focus:border-orange-500"
                     required
                 />
@@ -103,7 +90,7 @@ export const ClientEditModal: React.FC<ClientEditModalProps> = ({ isOpen, onClos
                         <label className="block text-xs font-bold text-gray-500 mb-1">CEP</label>
                         <input 
                             value={formData.cep || ''} 
-                            onChange={e => handleChange('cep', maskCEP(e.target.value))}
+                            onChange={e => handleChange('cep', e.target.value)}
                             onBlur={handleCepBlur}
                             className="w-full border border-gray-300 rounded-lg px-3 py-2 outline-none focus:border-orange-500 text-sm"
                             placeholder="00000-000"

@@ -49,11 +49,7 @@ export const OrderEditModal: React.FC<OrderEditModalProps> = ({ isOpen, onClose,
 
   if (!isOpen || !order) return null;
 
-  const maskCEP = (v: string) => {
-    v = v.replace(/\D/g, '');
-    if (v.length > 8) v = v.slice(0, 8);
-    return v.replace(/^(\d{5})(\d)/, '$1-$2').slice(0, 9);
-  };
+  const maskCEP = (v: string) => v.replace(/\D/g, '').replace(/(\d{5})(\d)/, '$1-$2').slice(0, 9);
 
   const handleCepBlur = async () => {
     const raw = address.cep.replace(/\D/g, '');

@@ -48,28 +48,6 @@ export const CartSidebar: React.FC<CartSidebarProps> = ({
   });
   const [loadingCep, setLoadingCep] = useState(false);
 
-  // Masks
-  const maskPhone = (v: string) => {
-    v = v.replace(/\D/g, '');
-    if (v.length > 11) v = v.slice(0, 11);
-    return v.replace(/^(\d{2})(\d)/g, '($1) $2').replace(/(\d{5})(\d)/, '$1-$2').slice(0, 15);
-  };
-
-  const maskCEP = (v: string) => {
-    v = v.replace(/\D/g, '');
-    if (v.length > 8) v = v.slice(0, 8);
-    return v.replace(/^(\d{5})(\d)/, '$1-$2').slice(0, 9);
-  };
-
-  const maskCPF = (value: string) => {
-    return value
-      .replace(/\D/g, '')
-      .replace(/(\d{3})(\d)/, '$1.$2')
-      .replace(/(\d{3})(\d)/, '$1.$2')
-      .replace(/(\d{3})(\d{1,2})/, '$1-$2')
-      .slice(0, 14);
-  };
-
   // Admin Search State
   const [isSearchingClient, setIsSearchingClient] = useState(false);
   const [users, setUsers] = useState<User[]>([]);
@@ -350,7 +328,7 @@ export const CartSidebar: React.FC<CartSidebarProps> = ({
                                       <input 
                                         className="w-full border border-gray-300 p-2 text-sm rounded-lg outline-none focus:ring-2 focus:ring-orange-500"
                                         value={endCustomer.cpf}
-                                        onChange={e => setEndCustomer({...endCustomer, cpf: maskCPF(e.target.value)})}
+                                        onChange={e => setEndCustomer({...endCustomer, cpf: e.target.value})}
                                       />
                                   </div>
                                   <div>
@@ -371,7 +349,7 @@ export const CartSidebar: React.FC<CartSidebarProps> = ({
                                         className={`w-full border border-gray-300 p-2 text-sm rounded-lg outline-none focus:ring-2 focus:ring-orange-500 ${loadingCep ? 'opacity-50' : ''}`}
                                         value={endCustomer.cep}
                                         onBlur={handleCepBlur}
-                                        onChange={e => setEndCustomer({...endCustomer, cep: maskCEP(e.target.value)})}
+                                        onChange={e => setEndCustomer({...endCustomer, cep: e.target.value})}
                                       />
                                       {loadingCep && <div className="absolute top-7 right-2"><div className="w-3 h-3 border-2 border-orange-500 border-t-transparent rounded-full animate-spin"></div></div>}
                                   </div>
@@ -385,24 +363,13 @@ export const CartSidebar: React.FC<CartSidebarProps> = ({
                                   </div>
                               </div>
 
-                              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                                  <div>
-                                      <label className="text-[10px] font-bold text-gray-400 uppercase">WhatsApp *</label>
-                                      <input 
-                                        className="w-full border border-gray-300 p-2 text-sm rounded-lg outline-none focus:ring-2 focus:ring-orange-500"
-                                        value={endCustomer.phone}
-                                        onChange={e => setEndCustomer({...endCustomer, phone: maskPhone(e.target.value)})}
-                                        placeholder="(00) 00000-0000"
-                                      />
-                                  </div>
-                                  <div>
-                                      <label className="text-[10px] font-bold text-gray-400 uppercase">Rua *</label>
-                                      <input 
-                                        className="w-full border border-gray-300 p-2 text-sm rounded-lg outline-none focus:ring-2 focus:ring-orange-500"
-                                        value={endCustomer.street}
-                                        onChange={e => setEndCustomer({...endCustomer, street: e.target.value})}
-                                      />
-                                  </div>
+                              <div>
+                                  <label className="text-[10px] font-bold text-gray-400 uppercase">Rua *</label>
+                                  <input 
+                                    className="w-full border border-gray-300 p-2 text-sm rounded-lg outline-none focus:ring-2 focus:ring-orange-500"
+                                    value={endCustomer.street}
+                                    onChange={e => setEndCustomer({...endCustomer, street: e.target.value})}
+                                  />
                               </div>
 
                               <div className="grid grid-cols-2 gap-2">
