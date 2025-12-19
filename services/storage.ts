@@ -48,12 +48,9 @@ const handleFirestoreError = (err: any, fallback: any = null) => {
 
 // CRITICAL: Helper to remove 'undefined' values which cause Firestore to crash
 const sanitizePayload = (data: any): any => {
-  // Simple hack: JSON stringify removes 'undefined' keys automatically
-  // and converts dates/complex objects to compatible formats
   return JSON.parse(JSON.stringify(data));
 };
 
-// ... existing real-time listeners ...
 export const subscribeToProducts = (callback: (products: Product[]) => void) => {
   if (!isFirebaseConfigured) {
     callback(MOCK_PRODUCTS);
@@ -155,7 +152,6 @@ export const subscribeToUsers = (callback: (users: User[]) => void) => {
   );
 };
 
-// ... Categories CRUD ...
 export const addCategory = async (name: string) => {
   if (!isFirebaseConfigured || !name.trim()) return;
   try {
@@ -178,7 +174,6 @@ export const deleteCategory = async (id: string, name: string) => {
   } catch (error) { handleFirestoreError(error); }
 };
 
-// ... Products CRUD ...
 export const getStoredProducts = async (): Promise<Product[]> => {
   if (!isFirebaseConfigured) return MOCK_PRODUCTS;
   try {
@@ -270,7 +265,6 @@ export const deleteAllProducts = async () => {
     } catch (error) { handleFirestoreError(error); }
 };
 
-// ... Stories ...
 export const addStory = async (storyData: { imageUrl: string; type: 'image' | 'video'; caption: string; productId?: string }) => {
   if (!isFirebaseConfigured) return;
   try {
@@ -306,7 +300,6 @@ export const deleteStory = async (id: string) => {
   } catch (error) { handleFirestoreError(error); }
 };
 
-// ... Settings & Images ...
 export const getShopSettings = async (): Promise<ShopSettings> => {
   const defaults: ShopSettings = {
     shopName: "Lojista Vip",
@@ -373,7 +366,6 @@ export const saveLogo = async (url: string) => {
   } catch (error) { handleFirestoreError(error); }
 };
 
-// ... Auth & Users (Cloud) ...
 export const getUsers = async (): Promise<User[]> => {
   if (!isFirebaseConfigured) return [];
   try {
@@ -421,7 +413,7 @@ export const registerVendor = async (name: string, phone: string, password: stri
             id: newUserRef.id,
             name,
             phone,
-            password, // In prod, hash this
+            password, 
             isAdmin: false,
             isVendor: true,
             createdAt: Date.now()
@@ -433,7 +425,6 @@ export const registerVendor = async (name: string, phone: string, password: stri
     }
 }
 
-// Register
 export const registerUser = async (userData: { name: string; phone: string; cpf?: string; birthDate?: string; cep: string; city: string; street: string; number: string; district: string; complement: string; password: string; }): Promise<{ success: boolean; message: string; user?: User }> => {
   if (!isFirebaseConfigured) {
     return { success: false, message: 'Banco de dados não configurado.' };
@@ -467,9 +458,7 @@ export const registerUser = async (userData: { name: string; phone: string; cpf?
   }
 };
 
-// Login
 export const loginUser = async (identifier: string, password: string, remember: boolean): Promise<{ success: boolean; message: string; user?: User }> => {
-  // Admin Check
   if (identifier === 'admin' && password === '12345678') {
     const adminUser: User = { id: 'admin', name: 'Administrador', isAdmin: true, username: 'admin' };
     if (remember) localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(adminUser));
@@ -477,7 +466,6 @@ export const loginUser = async (identifier: string, password: string, remember: 
   }
 
   if (!isFirebaseConfigured) {
-    // Basic local login simulation if firebase fails/not set
     return { success: false, message: 'Sistema offline. Login de cliente indisponível.' };
   }
 
@@ -526,7 +514,6 @@ export const fetchAddressByCep = async (cep: string): Promise<{ city: string, st
   }
 };
 
-// --- Cart Persistence ---
 export const saveUserCart = async (userId: string, cart: CartItem[]) => {
   const currentUser = getCurrentUser();
   if (currentUser && currentUser.id === userId) {
@@ -541,7 +528,6 @@ export const saveUserCart = async (userId: string, cart: CartItem[]) => {
   } catch (error) { handleFirestoreError(error); }
 };
 
-// --- Orders ---
 export const getOrders = async (): Promise<Order[]> => {
   if (!isFirebaseConfigured) return [];
   try {
@@ -551,102 +537,34 @@ export const getOrders = async (): Promise<Order[]> => {
   } catch (error) { return handleFirestoreError(error, []); }
 };
 
-// --- EMAIL NOTIFICATION SYSTEM ---
-const sendEmailNotification = async (order: Order) => {
-  const emailTarget = "m.mateushugo123@gmail.com";
-  const subject = `Novo Pedido #${order.id.slice(-6)} - Lojista Vip`;
-  
-  // Format items for email
-  const itemsList = order.items.map(i => 
-    `- ${i.quantity}x ${i.name} (R$ ${i.price.toFixed(2)})`
-  ).join('\n');
+// --- Order Operations ---
 
-  const message = `
-    NOVO PEDIDO RECEBIDO!
-    --------------------------------
-    Cliente: ${order.userName}
-    Telefone: ${order.userPhone}
-    CPF: ${order.userCpf || 'N/A'}
-    Nascimento: ${order.userBirthDate || 'N/A'}
-    
-    Endereço:
-    ${order.userStreet}, ${order.userNumber} - ${order.userDistrict}
-    ${order.userCity} - ${order.userCep}
-    ${order.userComplement ? 'Comp: ' + order.userComplement : ''}
-    
-    Itens:
-    ${itemsList}
-    
-    Total (Estimado): R$ ${order.total.toFixed(2)}
-    Forma de Envio: ${order.shippingMethod}
-    
-    Acesse o painel administrativo para mais detalhes.
-  `;
-
-  try {
-    // FormSubmit Endpoint - using standard POST structure
-    // Adding _template=table for better formatting and _captcha=false to avoid blocks
-    await fetch(`https://formsubmit.co/ajax/${emailTarget}`, {
-      method: "POST",
-      headers: { 
-        'Content-Type': 'application/json',
-        'Accept': 'application/json'
-      },
-      body: JSON.stringify({
-        _subject: subject,
-        message: message,
-        _template: "table",
-        _captcha: "false"
-      })
-    });
-    console.log("Email de notificação enviado via FormSubmit.");
-  } catch (error) {
-    console.error("Falha ao enviar email de notificação:", error);
-  }
-};
-
+// Add missing export function saveOrder.
 export const saveOrder = async (order: Order) => {
   if (!isFirebaseConfigured) return;
   try {
-    const orderRef = doc(collection(db, ORDERS_COL)); // New ID
-    const orderWithId = { ...order, id: orderRef.id };
-    
-    const safePayload = sanitizePayload(orderWithId);
-    
-    await setDoc(orderRef, safePayload);
-
-    // Send Email (Fire and forget)
-    sendEmailNotification(orderWithId).catch(console.error);
-
-  } catch (error) { 
-    console.error("Error saving order:", error);
-    handleFirestoreError(error); 
-    throw error; 
-  }
-};
-
-export const updateOrder = async (order: Order) => {
-  if (!isFirebaseConfigured) return;
-  try {
-    const orderRef = doc(db, ORDERS_COL, order.id);
-    const safePayload = sanitizePayload(order);
-    await setDoc(orderRef, safePayload, { merge: true });
+    const { id, ...data } = order;
+    await setDoc(doc(db, ORDERS_COL, id), sanitizePayload(data));
   } catch (error) { handleFirestoreError(error); }
 };
 
+// Add missing export function updateOrder.
+export const updateOrder = async (order: Order) => {
+  if (!isFirebaseConfigured) return;
+  try {
+    const { id, ...data } = order;
+    await updateDoc(doc(db, ORDERS_COL, id), sanitizePayload(data));
+  } catch (error) { handleFirestoreError(error); }
+};
+
+// Add missing export function deleteOrder.
 export const deleteOrder = async (orderId: string): Promise<boolean> => {
   if (!isFirebaseConfigured) return false;
-  console.log("Serviço: Iniciando exclusão do pedido", orderId);
   try {
     await deleteDoc(doc(db, ORDERS_COL, orderId));
-    console.log("Serviço: Exclusão bem-sucedida");
     return true;
-  } catch (error: any) { 
-    console.error("Serviço: Erro ao excluir pedido", error);
-    if (error.code === 'permission-denied') {
-        alert("ERRO DE PERMISSÃO: O banco de dados recusou a exclusão. Verifique as Regras de Segurança no Firebase Console.");
-    }
-    handleFirestoreError(error); 
+  } catch (error) { 
+    handleFirestoreError(error);
     return false;
   }
 };

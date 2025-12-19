@@ -4,7 +4,7 @@ import {
   subscribeToProducts,
   subscribeToStories,
   subscribeToCategories,
-  subscribeToOrders, // Imported for global listener
+  subscribeToOrders, 
   addProduct,
   updateProduct,
   deleteProduct,
@@ -42,7 +42,6 @@ import { UserOrdersModal } from './components/UserOrdersModal';
 import { ProductFormModal } from './components/ProductFormModal';
 import { OrderSuccessModal } from './components/OrderSuccessModal';
 
-// Base64 Simple Ding Sound (Glass Ping)
 const NOTIFICATION_SOUND = "data:audio/mp3;base64,//uQxAAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq//uQxAAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq//uQxAAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq//uQxAAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq//uQxAAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq//uQxAAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq//uQxAAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq//uQxAAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq//uQxAAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq//uQxAAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq//uQxAAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq//uQxAAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq//uQxAAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq//uQxAAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq//uQxAAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq//uQxAAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq//uQxAAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq//uQxAAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq//uQxAAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq//uQxAAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq//uQxAAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq//uQxAAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq//uQxAAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq//uQxAAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq");
 
 function App() {
@@ -53,59 +52,36 @@ function App() {
   const [settings, setSettings] = useState<ShopSettings | null>(null);
   const [loading, setLoading] = useState(true);
   
-  // User State
   const [currentUser, setCurrentUser] = useState<User | null>(null);
-  
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isSalesAreaOpen, setIsSalesAreaOpen] = useState(false);
   const [isUserOrdersOpen, setIsUserOrdersOpen] = useState(false); 
-  
   const [view, setView] = useState<'home' | 'admin'>('home');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [heroImage, setHeroImage] = useState<string>('');
   const [heroImageError, setHeroImageError] = useState(false);
   const [logo, setLogo] = useState<string>('');
-  
-  // Filtering & Sorting State
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState<'default' | 'price_asc' | 'price_desc' | 'views' | 'newest'>('default');
-  
-  // Transition State (White Screen Delay)
   const [isTransitioning, setIsTransitioning] = useState(false);
   
-  // References
   const heroFileInputRef = useRef<HTMLInputElement>(null);
-  const productAnchorRef = useRef<HTMLDivElement>(null); // Anchor for scrolling
-  
-  // Notification Reference to track the last seen order timestamp
-  // We initialize with Date.now() to avoid notifying for old orders on first load
+  const productAnchorRef = useRef<HTMLDivElement>(null); 
   const lastOrderTimestampRef = useRef<number>(Date.now()); 
-
-  // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
   const ITEMS_PER_PAGE = 12;
 
-  // Story States
   const [viewingStoryId, setViewingStoryId] = useState<string | null>(null);
   const [isStoryCreatorOpen, setIsStoryCreatorOpen] = useState(false);
-
-  // Product Details State
   const [viewingProduct, setViewingProduct] = useState<Product | null>(null);
-
-  // Admin Edit Order State
   const [editingOrder, setEditingOrder] = useState<Order | null>(null);
-
-  // Quick Edit Product State (Admin)
   const [quickEditingProduct, setQuickEditingProduct] = useState<Product | null>(null);
   const [isProductFormOpen, setIsProductFormOpen] = useState(false);
-
-  // Success Modal State
   const [showOrderSuccess, setShowOrderSuccess] = useState(false);
   const [lastOrderForWhatsapp, setLastOrderForWhatsapp] = useState<Order | null>(null);
 
-  // Policy Modal State
   const [policyModal, setPolicyModal] = useState<{ isOpen: boolean; title: string; content: string }>({
     isOpen: false,
     title: '',
@@ -113,23 +89,16 @@ function App() {
   });
 
   useEffect(() => {
-    // 1. Subscribe to Products
     const unsubProducts = subscribeToProducts((data) => {
       setProducts(data);
       setLoading(false);
     });
-
-    // 2. Subscribe to Stories
     const unsubStories = subscribeToStories((data) => {
       setStories(data);
     });
-
-    // 3. Subscribe to Categories
     const unsubCategories = subscribeToCategories((data) => {
         setCategories(data);
     });
-
-    // 4. Load Async Settings/Images
     const loadAsyncData = async () => {
       const hImg = await getHeroImage();
       const lImg = await getLogo();
@@ -139,21 +108,15 @@ function App() {
       setSettings(sets);
     };
     loadAsyncData();
-    
-    // 5. Check User
     const user = getCurrentUser();
     if (user) {
       setCurrentUser(user);
-      if (user.isAdmin || user.isVendor) {
-        // Logged in as staff
-      } else if (user.savedCart) {
+      if (!(user.isAdmin || user.isVendor) && user.savedCart) {
         setCart(user.savedCart); 
       }
     } else {
       setIsAuthOpen(true);
     }
-
-    // Cleanup listeners
     return () => {
       unsubProducts();
       unsubStories();
@@ -161,38 +124,21 @@ function App() {
     };
   }, []);
 
-  // --- NOTIFICATION LISTENER FOR ADMINS ---
   useEffect(() => {
-    // Only run this logic if user is Admin or Vendor
     if (!currentUser || (!currentUser.isAdmin && !currentUser.isVendor)) return;
-
-    // Reset Title on mount
     document.title = "Lojista Vip";
-
     let isFirstLoad = true;
-
-    // Listen to ALL orders to detect new ones
     const unsubscribeOrders = subscribeToOrders((allOrders) => {
         if (allOrders.length === 0) return;
-
-        // Find the absolute latest order
         const newestOrder = allOrders.reduce((prev, current) => 
             (prev.createdAt > current.createdAt) ? prev : current
         );
-
         if (isFirstLoad) {
-            // On first load, just sync the timestamp, don't notify
-            // Use Math.max to ensure we don't go backwards if local time is off
             lastOrderTimestampRef.current = Math.max(lastOrderTimestampRef.current, newestOrder.createdAt);
             isFirstLoad = false;
         } else {
-            // Check if there is a TRULY new order
             if (newestOrder.createdAt > lastOrderTimestampRef.current) {
-                
-                // 1. Update timestamp
                 lastOrderTimestampRef.current = newestOrder.createdAt;
-
-                // 2. Play Sound
                 try {
                     const audio = new Audio(NOTIFICATION_SOUND);
                     audio.volume = 0.5;
@@ -200,33 +146,26 @@ function App() {
                 } catch (e) {
                     console.error("Sound error", e);
                 }
-
-                // 3. Update Document Title
                 document.title = "🔔 NOVO PEDIDO! - Lojista Vip";
-
-                // 4. Show Browser Notification
                 if ("Notification" in window && Notification.permission === "granted") {
                     const notif = new Notification("💰 Novo Pedido Recebido!", {
                         body: `Cliente: ${newestOrder.userName}\nValor: R$ ${newestOrder.total.toFixed(2)}`,
-                        icon: logo || undefined, // Use logo if available
-                        tag: newestOrder.id // Prevent duplicate notifications for same ID
+                        icon: logo || undefined,
+                        tag: newestOrder.id 
                     });
-                    
                     notif.onclick = () => {
                         window.focus();
-                        setView('admin'); // Navigate to admin
-                        document.title = "Lojista Vip"; // Reset title
+                        setView('admin'); 
+                        document.title = "Lojista Vip"; 
                         notif.close();
                     };
                 }
             }
         }
     });
-
     return () => unsubscribeOrders();
-  }, [currentUser, logo]); // Re-run if user logs in/out
+  }, [currentUser, logo]); 
 
-  // Reset title when entering Admin view
   useEffect(() => {
       if (view === 'admin') {
           document.title = "Painel Administrativo - Lojista Vip";
@@ -235,7 +174,6 @@ function App() {
       }
   }, [view]);
 
-  // Separate effect for URL param to ensure products are loaded
   useEffect(() => {
     if (products.length > 0) {
       const params = new URLSearchParams(window.location.search);
@@ -250,33 +188,26 @@ function App() {
     }
   }, [products]);
 
-  // Sync Cart to User Storage whenever it changes
   useEffect(() => {
     if (currentUser && !currentUser.isAdmin && !currentUser.isVendor) {
       saveUserCart(currentUser.id, cart);
     }
   }, [cart, currentUser]);
 
-  // Reset image error when URL changes
   useEffect(() => {
     setHeroImageError(false);
   }, [heroImage]);
 
-  // HELPER: Perform a Transition (Delay + Scroll)
   const performTransition = (action: () => void) => {
     setIsTransitioning(true);
-    
-    // Scroll immediately to product area so when the "curtain" lifts, we are there
     if (productAnchorRef.current) {
-        // Offset for header
         const y = productAnchorRef.current.getBoundingClientRect().top + window.scrollY - 100;
         window.scrollTo({ top: y, behavior: 'smooth' });
     }
-
     setTimeout(() => {
         action();
         setIsTransitioning(false);
-    }, 2000); // 2 Seconds White Screen
+    }, 2000); 
   };
 
   const addToCart = (product: Product, quantity: number = 1, note: string = '') => {
@@ -312,17 +243,13 @@ function App() {
       extras: { wantsInvoice: boolean; wantsInsurance: boolean; shippingMethod: string },
       customerOverride?: { user: User, address: any }
   ) => {
-    // AUTH CHECK: Open modal if not logged in
     if (!currentUser) {
-      setIsCartOpen(false); // Close cart so auth modal is visible clearly
+      setIsCartOpen(false); 
       setIsAuthOpen(true);
       return;
     }
-
     const subtotal = cart.reduce((acc, item) => acc + (item.price * item.quantity), 0);
     const total = subtotal; 
-    
-    // Determine who is the "User" for the order
     const targetUser = customerOverride ? customerOverride.user : currentUser;
     const targetAddress = customerOverride ? customerOverride.address : null;
 
@@ -332,18 +259,14 @@ function App() {
         userId: targetUser.id || 'unknown',
         userName: targetUser.name || 'Cliente',
         userPhone: targetUser.phone || '',
-        
-        // Pass Personal Info
         userCpf: targetUser.cpf || '',
         userBirthDate: targetUser.birthDate || '',
-        
         userCep: targetAddress?.cep || targetUser.cep || '',
         userCity: targetAddress?.city || targetUser.city || '',
         userStreet: targetAddress?.street || targetUser.street || '', 
         userNumber: targetAddress?.number || targetUser.number || '',
         userDistrict: targetAddress?.district || targetUser.district || '',
         userComplement: targetUser.complement || '', 
-
         items: [...cart],
         total: total || 0,
         discount: 0,
@@ -351,7 +274,6 @@ function App() {
         wantsInvoice: !!extras.wantsInvoice,
         wantsInsurance: !!extras.wantsInsurance,
         shippingMethod: extras.shippingMethod || '',
-        
         status: 'orcamento', 
         createdAt: Date.now(),
         trackingCode: '', 
@@ -361,37 +283,10 @@ function App() {
 
       try {
         await saveOrder(newOrder);
-        setCart([]); // Clear cart
-        
-        // --- WHATSAPP NOTIFICATION LOGIC ---
-        // Since we don't have a backend to push messages, we direct the CLIENT to send the message.
-        setLastOrderForWhatsapp(newOrder); // Store for modal retry
-        
-        const itemsList = newOrder.items.map(i => `${i.quantity}x ${i.name}`).join('\n');
-        const adminPhone = "5562992973853";
-        const message = 
-`🔔 *NOVO PEDIDO REALIZADO!*
---------------------------------
-🆔 *Pedido:* #${newOrder.id.slice(-6)}
-👤 *Cliente:* ${newOrder.userName}
-💰 *Total:* R$ ${newOrder.total.toFixed(2)}
-
-📦 *Itens:*
-${itemsList}
-
-📍 *Destino:* ${newOrder.userCity || 'N/A'}
-
-Estou aguardando a confirmação!`;
-
-        const whatsappUrl = `https://api.whatsapp.com/send?phone=${adminPhone}&text=${encodeURIComponent(message)}`;
-        
-        // Attempt to open WhatsApp immediately
-        const w = window.open(whatsappUrl, '_blank');
-        
-        // TRIGGER SUCCESS MODAL
+        setCart([]); 
+        setLastOrderForWhatsapp(newOrder);
         setIsCartOpen(false);
         setShowOrderSuccess(true);
-
       } catch (error) {
         console.error("Erro ao salvar pedido:", error);
         alert("Houve um erro ao registrar o pedido no sistema. Tente novamente.");
@@ -412,7 +307,7 @@ Estou aguardando a confirmação!`;
         setCart(result.user.savedCart);
       }
       if (result.user.isAdmin || result.user.isVendor) {
-        setView('admin'); // Both admins and vendors go to the panel view
+        setView('admin'); 
       }
       setIsAuthOpen(false);
     }
@@ -440,52 +335,40 @@ Estou aguardando a confirmação!`;
     setIsCartOpen(true);
   };
 
-  // Admin Product Actions
   const handleAddProduct = async (product: Omit<Product, 'id'>) => {
     await addProduct(product);
   };
-
   const handleUpdateProduct = async (product: Product) => {
     await updateProduct(product);
   };
-
   const handleDeleteProduct = async (id: string) => {
     if (confirm('Tem certeza que deseja excluir este produto?')) {
       await deleteProduct(id);
     }
   };
-
   const handleDescriptionUpdate = async (id: string, newDesc: string) => {
     await updateProductDescription(id, newDesc);
   };
-
   const handleQuickEditProduct = (product: Product) => {
     setQuickEditingProduct(product);
     setIsProductFormOpen(true);
   };
-
   const handleQuickSaveProduct = async (data: Product | Omit<Product, 'id'>) => {
     if ('id' in data) {
       await updateProduct(data as Product);
     }
     setQuickEditingProduct(null);
   };
-
-  // Admin Order Edit
   const handleEditOrder = (order: Order) => {
     setEditingOrder(order);
   };
-
   const handleSaveEditedOrder = async (updatedOrder: Order) => {
     await updateOrder(updatedOrder);
     setEditingOrder(null);
   };
-
-  // Story Actions
   const handleAddStory = async (data: { imageUrl: string; type: 'image' | 'video'; caption: string; productId?: string }) => {
     await addStory(data);
   };
-
   const handleDeleteStory = async (id: string) => {
     setViewingStoryId(null);
     try {
@@ -494,14 +377,12 @@ Estou aguardando a confirmação!`;
       console.error("Falha ao deletar story", e);
     }
   };
-
   const handleStoryView = (story: Story) => {
       if (currentUser && !currentUser.isAdmin) {
           markStoryAsViewed(story.id, currentUser.id);
       }
       setViewingStoryId(story.id);
   };
-
   const handleStoryProductLink = (productId: string) => {
     const product = products.find(p => p.id === productId);
     if (product) {
@@ -509,11 +390,9 @@ Estou aguardando a confirmação!`;
       setViewingProduct(product);
     }
   };
-
   const handleEditHero = () => {
     heroFileInputRef.current?.click();
   };
-
   const handleHeroFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -527,7 +406,6 @@ Estou aguardando a confirmação!`;
       reader.readAsDataURL(file);
     }
   };
-
   const handleOpenPolicy = (type: 'about' | 'shipping' | 'warranty' | 'fees') => {
     if (!settings) return;
     const titles = {
@@ -542,15 +420,12 @@ Estou aguardando a confirmação!`;
       warranty: settings.warrantyPolicy,
       fees: settings.feesPolicy
     };
-    
     setPolicyModal({
       isOpen: true,
       title: titles[type],
       content: contents[type] || 'Conteúdo não definido.'
     });
   };
-
-  // Logic to handle filters with delay
   const handleSelectCategory = (cat: string | null) => {
     if (cat === selectedCategory) return;
     performTransition(() => {
@@ -559,19 +434,14 @@ Estou aguardando a confirmação!`;
         setView('home');
     });
   };
-
   const handleSearchChange = (term: string) => {
       setSearchTerm(term);
       setCurrentPage(1);
   };
-
   const handleSearchSubmit = (e?: React.FormEvent) => {
       e?.preventDefault();
-      performTransition(() => {
-          // Just triggering re-render with visual delay
-      });
+      performTransition(() => {});
   };
-
   const handleSortChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
       const val = e.target.value as any;
       performTransition(() => {
@@ -579,18 +449,14 @@ Estou aguardando a confirmação!`;
           setCurrentPage(1);
       });
   };
-
   const handlePageChange = (newPage: number) => {
       performTransition(() => {
           setCurrentPage(newPage);
       });
   };
-
   const isStaff = currentUser?.isAdmin || currentUser?.isVendor;
-
   const filteredProducts = useMemo(() => {
       let result = products.filter(p => p.available);
-
       if (selectedCategory === 'Novidades da Semana') {
           result = result.filter(p => {
              const oneWeekAgo = Date.now() - (7 * 24 * 60 * 60 * 1000);
@@ -599,12 +465,10 @@ Estou aguardando a confirmação!`;
       } else if (selectedCategory) {
           result = result.filter(p => p.category === selectedCategory);
       }
-
       if (searchTerm.trim()) {
           const lowerTerm = searchTerm.toLowerCase();
           result = result.filter(p => p.name.toLowerCase().includes(lowerTerm));
       }
-
       switch (sortBy) {
           case 'price_asc':
               result.sort((a, b) => a.price - b.price);
@@ -621,7 +485,6 @@ Estou aguardando a confirmação!`;
           default:
               break;
       }
-
       return result;
   }, [products, selectedCategory, searchTerm, sortBy]);
 
@@ -658,7 +521,6 @@ Estou aguardando a confirmação!`;
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col font-sans relative">
-      
       {isTransitioning && (
           <div className="fixed inset-0 z-[200] bg-white flex items-center justify-center animate-fade-in">
               <div className="flex flex-col items-center">
@@ -667,7 +529,6 @@ Estou aguardando a confirmação!`;
               </div>
           </div>
       )}
-
       <input 
         type="file" 
         ref={heroFileInputRef}
@@ -675,7 +536,6 @@ Estou aguardando a confirmação!`;
         accept="image/*"
         className="hidden"
       />
-
       <Header 
         cartCount={cart.reduce((a, b) => a + b.quantity, 0)}
         onCartClick={handleHeaderCartClick} 
@@ -686,7 +546,6 @@ Estou aguardando a confirmação!`;
         onAdminClick={() => setView('admin')} 
         logo={logo}
       />
-
       <main className="flex-grow max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
         {view === 'admin' && isStaff ? (
           <div className="animate-fade-in-up">
@@ -716,19 +575,16 @@ Estou aguardando a confirmação!`;
           </div>
         ) : (
           <div className="animate-fade-in-up">
-             {/* Stories Section */}
              {(stories.length > 0 || isStaff) && (
                <div className="mb-6">
                  <StoryList 
                     stories={stories}
-                    isAdmin={!!currentUser?.isAdmin} // Vendors cannot edit stories
+                    isAdmin={!!currentUser?.isAdmin} 
                     onAddClick={() => setIsStoryCreatorOpen(true)}
                     onStoryClick={handleStoryView}
                  />
                </div>
              )}
-
-             {/* Static Hero Cover */}
              {!selectedCategory && !searchTerm && (
                 <div className="mb-10 rounded-2xl overflow-hidden shadow-lg relative group bg-gray-100 min-h-[100px]">
                   {heroImage && !heroImageError ? (
@@ -748,7 +604,6 @@ Estou aguardando a confirmação!`;
                       </span>
                     </div>
                   ) : null}
-
                   {currentUser?.isAdmin && (
                     <button 
                       onClick={handleEditHero}
@@ -762,11 +617,8 @@ Estou aguardando a confirmação!`;
                   )}
                 </div>
              )}
-
              <div className="flex flex-col mb-6">
-                
                 <div ref={productAnchorRef} className="scroll-mt-32"></div>
-
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
                   <div className="flex flex-col">
                       <h2 className="text-2xl font-bold text-gray-800">Catálogo de Produtos</h2>
@@ -774,8 +626,6 @@ Estou aguardando a confirmação!`;
                         <span className="bg-orange-100 text-orange-800 text-xs font-semibold px-2.5 py-0.5 rounded">Lojista Vip</span>
                       </div>
                   </div>
-
-                  {/* SEARCH AND SORT CONTROLS */}
                   <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
                       <form onSubmit={handleSearchSubmit} className="relative group w-full sm:w-64">
                           <input 
@@ -791,7 +641,6 @@ Estou aguardando a confirmação!`;
                               </svg>
                           </div>
                       </form>
-
                       <div className="relative w-full sm:w-48">
                           <select 
                               value={sortBy}
@@ -810,8 +659,6 @@ Estou aguardando a confirmação!`;
                       </div>
                   </div>
                 </div>
-                
-                {/* PROMO SECTION */}
                 {!selectedCategory && !searchTerm && promoProducts.length > 0 && (
                     <div className="mb-8">
                         <h3 className="text-lg font-bold text-orange-600 mb-3 flex items-center gap-2">
@@ -831,14 +678,12 @@ Estou aguardando a confirmação!`;
                         </div>
                     </div>
                 )}
-
                 <CategoryFilter 
                   categories={categories}
                   selectedCategory={selectedCategory}
                   onSelectCategory={handleSelectCategory}
                 />
              </div>
-
              {filteredProducts.length === 0 ? (
                <div className="text-center py-20 text-gray-400">
                  <p className="text-lg">
@@ -859,7 +704,6 @@ Estou aguardando a confirmação!`;
                     />
                   ))}
                 </div>
-
                 {totalPages > 1 && (
                   <div className="flex justify-center items-center mt-10 gap-4">
                     <button 
@@ -886,7 +730,6 @@ Estou aguardando a confirmação!`;
           </div>
         )}
       </main>
-
       <footer className="bg-zinc-900 border-t border-zinc-800 mt-12 py-8">
         <div className="max-w-7xl mx-auto px-4 text-center">
           <a 
@@ -900,7 +743,6 @@ Estou aguardando a confirmação!`;
           <p className="text-gray-400 text-sm mt-2">&copy; {new Date().getFullYear()} Lojista Vip. Todos os direitos reservados.</p>
         </div>
       </footer>
-
       <CartSidebar 
         isOpen={isCartOpen} 
         onClose={() => setIsCartOpen(false)} 
@@ -914,20 +756,17 @@ Estou aguardando a confirmação!`;
         } : undefined}
         isAdmin={!!currentUser?.isAdmin || !!currentUser?.isVendor}
       />
-
       <UserOrdersModal 
         isOpen={isUserOrdersOpen}
         onClose={() => setIsUserOrdersOpen(false)}
         user={currentUser}
       />
-
       <SalesArea 
         isOpen={isSalesAreaOpen}
         onClose={() => setIsSalesAreaOpen(false)}
         onEditItems={handleEditOrder}
         currentUser={currentUser}
       />
-
       <MenuDrawer 
         isOpen={isMenuOpen}
         onClose={() => setIsMenuOpen(false)}
@@ -939,14 +778,12 @@ Estou aguardando a confirmação!`;
         categories={categories}
         logo={logo}
       />
-
       <PolicyModal 
         isOpen={policyModal.isOpen}
         title={policyModal.title}
         content={policyModal.content}
         onClose={() => setPolicyModal({...policyModal, isOpen: false})}
       />
-
       <AuthModal 
         isOpen={isAuthOpen} 
         onClose={() => setIsAuthOpen(false)}
@@ -954,14 +791,12 @@ Estou aguardando a confirmação!`;
         onRegister={handleRegister}
         logo={logo}
       />
-
       <StoryCreatorModal 
         isOpen={isStoryCreatorOpen}
         onClose={() => setIsStoryCreatorOpen(false)}
         onSave={handleAddStory}
         products={products}
       />
-
       {viewingStoryId && (
         <StoryViewer 
           stories={stories}
@@ -973,7 +808,6 @@ Estou aguardando a confirmação!`;
           users={currentUser?.isAdmin ? [] : undefined} 
         />
       )}
-
       <ProductDetails 
         product={viewingProduct}
         onClose={() => setViewingProduct(null)}
@@ -981,14 +815,12 @@ Estou aguardando a confirmação!`;
         relatedProducts={getRelatedProducts(viewingProduct)}
         onRelatedClick={(p) => setViewingProduct(p)}
       />
-
       <OrderEditModal 
         isOpen={!!editingOrder}
         onClose={() => setEditingOrder(null)}
         order={editingOrder}
         onSave={handleSaveEditedOrder}
       />
-
       <ProductFormModal 
         isOpen={isProductFormOpen}
         onClose={() => setIsProductFormOpen(false)}
@@ -996,7 +828,6 @@ Estou aguardando a confirmação!`;
         onSave={handleQuickSaveProduct}
         categories={categories}
       />
-
       <OrderSuccessModal 
         isOpen={showOrderSuccess} 
         onClose={() => setShowOrderSuccess(false)} 
