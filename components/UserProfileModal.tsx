@@ -46,13 +46,44 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ isOpen, onCl
 
   if (!isOpen || !user) return null;
 
-  const formatCPF = (value: string) => {
-    return value
-      .replace(/\D/g, '')
-      .replace(/(\d{3})(\d)/, '$1.$2')
-      .replace(/(\d{3})(\d)/, '$1.$2')
-      .replace(/(\d{3})(\d{1,2})/, '$1-$2')
-      .replace(/(-\d{2})\d+?$/, '$1');
+  const maskPhone = (v: string) => {
+    v = v.replace(/\D/g, "");
+    if (v.length > 11) v = v.slice(0, 11);
+    if (v.length > 10) {
+      v = v.replace(/^(\d{2})(\d{5})(\d{4}).*/, "($1) $2-$3");
+    } else if (v.length > 5) {
+      v = v.replace(/^(\d{2})(\d{4})(\d{0,4}).*/, "($1) $2-$3");
+    } else if (v.length > 2) {
+      v = v.replace(/^(\d{2})(\d{0,5}).*/, "($1) $2");
+    } else {
+      v = v.replace(/^(\d*)/, "($1");
+    }
+    return v;
+  };
+
+  const maskCpfCnpj = (v: string) => {
+    v = v.replace(/\D/g, "");
+    if (v.length <= 11) {
+      // CPF
+      v = v.replace(/(\d{3})(\d)/, "$1.$2");
+      v = v.replace(/(\d{3})(\d)/, "$1.$2");
+      v = v.replace(/(\d{3})(\d{1,2})$/, "$1-$2");
+    } else {
+      // CNPJ
+      if (v.length > 14) v = v.slice(0, 14);
+      v = v.replace(/^(\d{2})(\d)/, "$1.$2");
+      v = v.replace(/^(\d{2})\.(\d{3})(\d)/, "$1.$2.$3");
+      v = v.replace(/\.(\d{3})(\d)/, ".$1/$2");
+      v = v.replace(/(\d{4})(\d)/, "$1-$2");
+    }
+    return v;
+  };
+
+  const maskCep = (v: string) => {
+    v = v.replace(/\D/g, "");
+    if (v.length > 8) v = v.slice(0, 8);
+    v = v.replace(/(\d{5})(\d)/, "$1-$2");
+    return v;
   };
 
   const handleCepBlur = async () => {
@@ -179,7 +210,8 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ isOpen, onCl
                             <input 
                                 className="w-full bg-white border border-gray-200 p-3 rounded-xl outline-none focus:ring-2 focus:ring-orange-500 shadow-sm"
                                 value={formData.phone || ''}
-                                onChange={e => setFormData({...formData, phone: e.target.value})}
+                                onChange={e => setFormData({...formData, phone: maskPhone(e.target.value)})}
+                                placeholder="(00) 00000-0000"
                                 required
                             />
                         </div>
@@ -187,12 +219,12 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ isOpen, onCl
 
                     <div className="grid grid-cols-2 gap-4">
                         <div>
-                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1">CPF</label>
+                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1">CPF / CNPJ</label>
                             <input 
                                 className="w-full bg-white border border-gray-200 p-3 rounded-xl outline-none focus:ring-2 focus:ring-orange-500 shadow-sm"
                                 value={formData.cpf || ''}
-                                maxLength={14}
-                                onChange={e => setFormData({...formData, cpf: formatCPF(e.target.value)})}
+                                onChange={e => setFormData({...formData, cpf: maskCpfCnpj(e.target.value)})}
+                                placeholder="000.000.000-00"
                                 required
                             />
                         </div>
@@ -219,7 +251,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ isOpen, onCl
                                     className="w-full bg-white border border-gray-200 p-3 rounded-xl outline-none focus:ring-2 focus:ring-orange-500 shadow-sm"
                                     value={formData.cep || ''}
                                     onBlur={handleCepBlur}
-                                    onChange={e => setFormData({...formData, cep: e.target.value})}
+                                    onChange={e => setFormData({...formData, cep: maskCep(e.target.value)})}
                                     placeholder="00000-000"
                                     required
                                 />

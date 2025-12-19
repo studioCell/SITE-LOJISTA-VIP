@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { CartItem, User } from '../types';
 import { Button } from './Button';
@@ -72,21 +73,62 @@ export const CartSidebar: React.FC<CartSidebarProps> = ({
   const subtotal = items.reduce((acc, item) => acc + (item.price * item.quantity), 0);
   const MIN_ORDER_VALUE = 20.00;
 
+  // Masking helpers
+  const maskPhone = (v: string) => {
+    v = v.replace(/\D/g, "");
+    if (v.length > 11) v = v.slice(0, 11);
+    if (v.length > 10) {
+      v = v.replace(/^(\d{2})(\d{5})(\d{4}).*/, "($1) $2-$3");
+    } else if (v.length > 5) {
+      v = v.replace(/^(\d{2})(\d{4})(\d{0,4}).*/, "($1) $2-$3");
+    } else if (v.length > 2) {
+      v = v.replace(/^(\d{2})(\d{0,5}).*/, "($1) $2");
+    } else {
+      v = v.replace(/^(\d*)/, "($1");
+    }
+    return v;
+  };
+
+  const maskCpfCnpj = (v: string) => {
+    v = v.replace(/\D/g, "");
+    if (v.length <= 11) {
+      // CPF
+      v = v.replace(/(\d{3})(\d)/, "$1.$2");
+      v = v.replace(/(\d{3})(\d)/, "$1.$2");
+      v = v.replace(/(\d{3})(\d{1,2})$/, "$1-$2");
+    } else {
+      // CNPJ
+      if (v.length > 14) v = v.slice(0, 14);
+      v = v.replace(/^(\d{2})(\d)/, "$1.$2");
+      v = v.replace(/^(\d{2})\.(\d{3})(\d)/, "$1.$2.$3");
+      v = v.replace(/\.(\d{3})(\d)/, ".$1/$2");
+      v = v.replace(/(\d{4})(\d)/, "$1-$2");
+    }
+    return v;
+  };
+
+  const maskCep = (v: string) => {
+    v = v.replace(/\D/g, "");
+    if (v.length > 8) v = v.slice(0, 8);
+    v = v.replace(/(\d{5})(\d)/, "$1-$2");
+    return v;
+  };
+
   const handleCepBlur = async () => {
-      const raw = endCustomer.cep.replace(/\D/g, '');
-      if (raw.length === 8) {
-          setLoadingCep(true);
-          const data = await fetchAddressByCep(raw);
-          setLoadingCep(false);
-          if (data) {
-              setEndCustomer(prev => ({ 
-                  ...prev, 
-                  city: data.city,
-                  street: data.street,
-                  district: data.district
-              }));
-          }
+    const raw = endCustomer.cep.replace(/\D/g, '');
+    if (raw.length === 8) {
+      setLoadingCep(true);
+      const data = await fetchAddressByCep(raw);
+      setLoadingCep(false);
+      if (data) {
+        setEndCustomer(prev => ({ 
+          ...prev, 
+          city: data.city,
+          street: data.street,
+          district: data.district
+        }));
       }
+    }
   };
 
   const isFormValid = () => {
@@ -95,11 +137,12 @@ export const CartSidebar: React.FC<CartSidebarProps> = ({
     if (shippingTarget === 'user') {
       return !!currentUser?.street && !!currentUser?.number && !!currentUser?.district && !!currentUser?.birthDate && !!currentUser?.cpf;
     } else {
+      const cleanCpf = endCustomer.cpf.replace(/\D/g, '');
       return (
         endCustomer.name.length > 3 &&
-        endCustomer.cpf.replace(/\D/g, '').length >= 11 &&
+        (cleanCpf.length === 11 || cleanCpf.length === 14) &&
         endCustomer.birthDate !== '' &&
-        endCustomer.cep.replace(/\D/g, '').length >= 8 &&
+        endCustomer.cep.replace(/\D/g, '').length === 8 &&
         endCustomer.street.length > 2 &&
         endCustomer.number.length >= 1 &&
         endCustomer.district.length > 2
@@ -159,7 +202,7 @@ export const CartSidebar: React.FC<CartSidebarProps> = ({
                       </div>
                       <div className="flex gap-4">
                           <div>
-                              <p className="text-[10px] text-gray-400 font-bold uppercase">CPF</p>
+                              <p className="text-[10px] text-gray-400 font-bold uppercase">CPF/CNPJ</p>
                               <p className="text-sm font-medium text-gray-700">{data.cpf || 'Não informado'}</p>
                           </div>
                           <div>
@@ -342,13 +385,26 @@ export const CartSidebar: React.FC<CartSidebarProps> = ({
                               
                               <div className="grid grid-cols-2 gap-2">
                                   <div>
+                                      <label className="text-[10px] font-bold text-gray-400 uppercase">Celular (WhatsApp) *</label>
+                                      <input 
+                                        className="w-full border border-gray-300 p-2 text-sm rounded-lg outline-none focus:ring-2 focus:ring-orange-500"
+                                        value={endCustomer.phone}
+                                        onChange={e => setEndCustomer({...endCustomer, phone: maskPhone(e.target.value)})}
+                                        placeholder="(00) 00000-0000"
+                                      />
+                                  </div>
+                                  <div>
                                       <label className="text-[10px] font-bold text-gray-400 uppercase">CPF / CNPJ *</label>
                                       <input 
                                         className="w-full border border-gray-300 p-2 text-sm rounded-lg outline-none focus:ring-2 focus:ring-orange-500"
                                         value={endCustomer.cpf}
-                                        onChange={e => setEndCustomer({...endCustomer, cpf: e.target.value})}
+                                        onChange={e => setEndCustomer({...endCustomer, cpf: maskCpfCnpj(e.target.value)})}
+                                        placeholder="000.000.000-00"
                                       />
                                   </div>
+                              </div>
+
+                              <div className="grid grid-cols-2 gap-2">
                                   <div>
                                       <label className="text-[10px] font-bold text-gray-400 uppercase">Nascimento *</label>
                                       <input 
@@ -358,27 +414,26 @@ export const CartSidebar: React.FC<CartSidebarProps> = ({
                                         onChange={e => setEndCustomer({...endCustomer, birthDate: e.target.value})}
                                       />
                                   </div>
-                              </div>
-
-                              <div className="grid grid-cols-3 gap-2">
-                                  <div className="col-span-1 relative">
+                                  <div className="relative">
                                       <label className="text-[10px] font-bold text-gray-400 uppercase">CEP *</label>
                                       <input 
                                         className={`w-full border border-gray-300 p-2 text-sm rounded-lg outline-none focus:ring-2 focus:ring-orange-500 ${loadingCep ? 'opacity-50' : ''}`}
                                         value={endCustomer.cep}
                                         onBlur={handleCepBlur}
-                                        onChange={e => setEndCustomer({...endCustomer, cep: e.target.value})}
+                                        onChange={e => setEndCustomer({...endCustomer, cep: maskCep(e.target.value)})}
+                                        placeholder="00000-000"
                                       />
                                       {loadingCep && <div className="absolute top-7 right-2"><div className="w-3 h-3 border-2 border-orange-500 border-t-transparent rounded-full animate-spin"></div></div>}
                                   </div>
-                                  <div className="col-span-2">
-                                      <label className="text-[10px] font-bold text-gray-400 uppercase">Cidade</label>
-                                      <input 
-                                        className="w-full border border-gray-300 p-2 text-sm rounded-lg bg-gray-100 outline-none text-gray-500 font-medium"
-                                        value={endCustomer.city}
-                                        readOnly
-                                      />
-                                  </div>
+                              </div>
+
+                              <div>
+                                  <label className="text-[10px] font-bold text-gray-400 uppercase">Cidade</label>
+                                  <input 
+                                    className="w-full border border-gray-300 p-2 text-sm rounded-lg bg-gray-100 outline-none text-gray-500 font-medium"
+                                    value={endCustomer.city}
+                                    readOnly
+                                  />
                               </div>
 
                               <div>
