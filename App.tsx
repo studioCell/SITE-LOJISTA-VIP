@@ -461,20 +461,19 @@ function App() {
   };
 
   const performTransition = (action: () => void) => {
-    // Reduzido o feedback visual para ser quase instantâneo
     setIsTransitioning(true);
-    if (productAnchorRef.current) {
-        const y = productAnchorRef.current.getBoundingClientRect().top + window.scrollY - 100;
-        window.scrollTo({ top: y, behavior: 'smooth' });
-    }
-    
-    // Executa a ação imediatamente
+    // Executa a ação (filtro, busca ou página)
     action();
     
-    // Pequeno timeout apenas para o efeito visual da overlay não "piscar" feio, mas processamento é imediato
+    // Pequeno timeout para garantir que o React processou a mudança de estado e o layout foi atualizado
     setTimeout(() => {
+        if (productAnchorRef.current) {
+            const headerHeight = 80;
+            const y = productAnchorRef.current.getBoundingClientRect().top + window.scrollY - headerHeight;
+            window.scrollTo({ top: y, behavior: 'smooth' });
+        }
         setIsTransitioning(false);
-    }, 150); 
+    }, 50); 
   };
 
   if (loading) {
@@ -591,7 +590,6 @@ function App() {
                 </div>
              )}
              <div className="flex flex-col mb-6">
-                <div ref={productAnchorRef} className="scroll-mt-32"></div>
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
                   <div className="flex flex-col">
                       <h2 className="text-2xl font-bold text-gray-800">Catálogo de Produtos</h2>
@@ -657,6 +655,10 @@ function App() {
                   onSelectCategory={handleSelectCategory}
                 />
              </div>
+             
+             {/* Âncora de scroll agora posicionada logo abaixo do filtro e das ofertas */}
+             <div ref={productAnchorRef} className="scroll-mt-32"></div>
+
              {filteredProducts.length === 0 ? (
                <div className="text-center py-20 text-gray-400">
                  <p className="text-lg">
