@@ -46,13 +46,25 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ isOpen, onCl
 
   if (!isOpen || !user) return null;
 
+  const maskPhone = (v: string) => {
+    v = v.replace(/\D/g, '');
+    if (v.length > 11) v = v.slice(0, 11);
+    return v.replace(/^(\d{2})(\d)/g, '($1) $2').replace(/(\d{5})(\d)/, '$1-$2').slice(0, 15);
+  };
+
+  const maskCEP = (v: string) => {
+    v = v.replace(/\D/g, '');
+    if (v.length > 8) v = v.slice(0, 8);
+    return v.replace(/^(\d{5})(\d)/, '$1-$2').slice(0, 9);
+  };
+
   const formatCPF = (value: string) => {
     return value
       .replace(/\D/g, '')
       .replace(/(\d{3})(\d)/, '$1.$2')
       .replace(/(\d{3})(\d)/, '$1.$2')
       .replace(/(\d{3})(\d{1,2})/, '$1-$2')
-      .replace(/(-\d{2})\d+?$/, '$1');
+      .slice(0, 14);
   };
 
   const handleCepBlur = async () => {
@@ -179,7 +191,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ isOpen, onCl
                             <input 
                                 className="w-full bg-white border border-gray-200 p-3 rounded-xl outline-none focus:ring-2 focus:ring-orange-500 shadow-sm"
                                 value={formData.phone || ''}
-                                onChange={e => setFormData({...formData, phone: e.target.value})}
+                                onChange={e => setFormData({...formData, phone: maskPhone(e.target.value)})}
                                 required
                             />
                         </div>
@@ -219,7 +231,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ isOpen, onCl
                                     className="w-full bg-white border border-gray-200 p-3 rounded-xl outline-none focus:ring-2 focus:ring-orange-500 shadow-sm"
                                     value={formData.cep || ''}
                                     onBlur={handleCepBlur}
-                                    onChange={e => setFormData({...formData, cep: e.target.value})}
+                                    onChange={e => setFormData({...formData, cep: maskCEP(e.target.value)})}
                                     placeholder="00000-000"
                                     required
                                 />

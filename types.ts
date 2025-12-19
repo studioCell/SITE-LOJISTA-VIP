@@ -99,7 +99,9 @@ export interface Order {
   shippingCost?: number; 
   shippingMethod?: string;
   wantsInvoice?: boolean; 
+  invoiceTaxPercent?: number; // Porcentagem manual de NF
   wantsInsurance?: boolean; 
+  insuranceTaxAmount?: number; // Valor FIXO manual de Seguro
   invoicePdf?: string;
   status: OrderStatus;
   createdAt: number;
@@ -107,6 +109,7 @@ export interface Order {
   trackingCode?: string;
   sellerId?: string;
   history: { status: OrderStatus; timestamp: number }[];
+  viewedByAdmin?: boolean;
 }
 
 export const MOCK_PRODUCTS: Product[] = [];

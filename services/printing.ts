@@ -1,6 +1,16 @@
 
 import { Order, ShopSettings } from '../types';
 
+const formatDisplayDate = (dateStr?: string) => {
+  if (!dateStr) return '-';
+  // Se a data vier no formato AAAA-MM-DD (padrão de input date)
+  if (dateStr.includes('-')) {
+    const [year, month, day] = dateStr.split('-');
+    return `${day}/${month}/${year}`;
+  }
+  return dateStr;
+};
+
 export const printOrder = (order: Order, settings: ShopSettings, logoUrl: string, isAdmin: boolean = false) => {
   const printWindow = window.open('', '_blank', 'width=800,height=600');
   if (!printWindow) return;
@@ -79,7 +89,11 @@ export const printOrder = (order: Order, settings: ShopSettings, logoUrl: string
           <div class="divider"></div>
 
           <p class="info" style="text-align: right;">Subtotal: R$ ${subtotal.toFixed(2)}</p>
-          <p class="info" style="text-align: right;">Desconto: - R$ ${(order.discount || 0).toFixed(2)}</p>
+          ${order.discount ? `<p class="info" style="text-align: right; color: red;">Desconto: - R$ ${order.discount.toFixed(2)}</p>` : ''}
+          ${order.shippingCost ? `<p class="info" style="text-align: right;">Frete: + R$ ${order.shippingCost.toFixed(2)}</p>` : ''}
+          ${order.wantsInvoice ? `<p class="info" style="text-align: right;">Nota Fiscal (${order.invoiceTaxPercent || 6}%): + R$ ${(subtotal * ((order.invoiceTaxPercent || 6) / 100)).toFixed(2)}</p>` : ''}
+          ${order.wantsInsurance ? `<p class="info" style="text-align: right;">Seguro: + R$ ${(order.insuranceTaxAmount || 0).toFixed(2)}</p>` : ''}
+          
           <p class="total">TOTAL: R$ ${order.total.toFixed(2)}</p>
 
           <div class="divider"></div>
@@ -138,7 +152,7 @@ export const generateQuotePDF = (order: Order, settings: ShopSettings, logoUrl: 
             .price-col { font-family: monospace; font-size: 14px; }
 
             .totals-section { display: flex; justify-content: flex-end; }
-            .totals-box { width: 300px; }
+            .totals-box { width: 320px; }
             .total-row { display: flex; justify-content: space-between; padding: 8px 0; font-size: 14px; border-bottom: 1px solid #eee; }
             .total-row.final { border-top: 2px solid #333; border-bottom: none; font-weight: bold; font-size: 18px; margin-top: 10px; padding-top: 10px; color: #f97316; }
 
@@ -175,7 +189,7 @@ export const generateQuotePDF = (order: Order, settings: ShopSettings, logoUrl: 
                 <div class="client-row"><span class="label">Nome:</span> ${order.userName}</div>
                 <div class="client-row"><span class="label">Telefone:</span> ${order.userPhone}</div>
                 ${order.userCpf ? `<div class="client-row"><span class="label">CPF:</span> ${order.userCpf}</div>` : ''}
-                ${order.userBirthDate ? `<div class="client-row"><span class="label">Nascimento:</span> ${order.userBirthDate}</div>` : ''}
+                ${order.userBirthDate ? `<div class="client-row"><span class="label">Nascimento:</span> ${formatDisplayDate(order.userBirthDate)}</div>` : ''}
                 <div class="client-row"><span class="label">Cidade:</span> ${order.userCity || '-'}</div>
                 <div class="client-row"><span class="label">Endereço:</span> ${order.userStreet ? `${order.userStreet}, ${order.userNumber}` : '-'}</div>
                 <div class="client-row"><span class="label">Bairro:</span> ${order.userDistrict || '-'}</div>
@@ -222,18 +236,18 @@ export const generateQuotePDF = (order: Order, settings: ShopSettings, logoUrl: 
                 </div>` : ''}
                 ${order.shippingCost ? `
                 <div class="total-row">
-                   <span>Frete (${order.shippingMethod}):</span>
+                   <span>Frete (${order.shippingMethod || 'Padrão'}):</span>
                    <span>+ R$ ${order.shippingCost.toFixed(2)}</span>
                 </div>` : ''}
                 ${order.wantsInvoice ? `
                 <div class="total-row">
-                   <span>Nota Fiscal (6%):</span>
-                   <span>+ R$ ${(subtotal * 0.06).toFixed(2)}</span>
+                   <span>Nota Fiscal (${order.invoiceTaxPercent || 6}%):</span>
+                   <span>+ R$ ${(subtotal * ((order.invoiceTaxPercent || 6) / 100)).toFixed(2)}</span>
                 </div>` : ''}
                 ${order.wantsInsurance ? `
                 <div class="total-row">
-                   <span>Seguro (3%):</span>
-                   <span>+ R$ ${(subtotal * 0.03).toFixed(2)}</span>
+                   <span>Taxa de Seguro:</span>
+                   <span>+ R$ ${(order.insuranceTaxAmount || 0).toFixed(2)}</span>
                 </div>` : ''}
                 
                 <div class="total-row final">
@@ -298,14 +312,14 @@ export const generateOrderSummaryPDF = (order: Order, settings: ShopSettings, lo
             .price-col { font-family: monospace; font-size: 14px; }
 
             .totals-section { display: flex; justify-content: flex-end; position: relative; }
-            .totals-box { width: 300px; }
+            .totals-box { width: 320px; }
             .total-row { display: flex; justify-content: space-between; padding: 8px 0; font-size: 14px; border-bottom: 1px solid #eee; }
             .total-row.final { border-top: 2px solid #333; border-bottom: none; font-weight: bold; font-size: 18px; margin-top: 10px; padding-top: 10px; color: #f97316; }
 
             .stamp {
                 position: absolute;
                 bottom: -20px;
-                right: 320px;
+                right: 340px;
                 border: 3px solid #ef4444;
                 color: #ef4444;
                 font-size: 24px;
@@ -353,7 +367,7 @@ export const generateOrderSummaryPDF = (order: Order, settings: ShopSettings, lo
                 <div class="client-row"><span class="label">Nome:</span> ${order.userName}</div>
                 <div class="client-row"><span class="label">Telefone:</span> ${order.userPhone}</div>
                 ${order.userCpf ? `<div class="client-row"><span class="label">CPF:</span> ${order.userCpf}</div>` : ''}
-                ${order.userBirthDate ? `<div class="client-row"><span class="label">Nascimento:</span> ${order.userBirthDate}</div>` : ''}
+                ${order.userBirthDate ? `<div class="client-row"><span class="label">Nascimento:</span> ${formatDisplayDate(order.userBirthDate)}</div>` : ''}
                 <div class="client-row"><span class="label">Cidade:</span> ${order.userCity || '-'}</div>
                 <div class="client-row"><span class="label">Endereço:</span> ${order.userStreet ? `${order.userStreet}, ${order.userNumber}` : '-'}</div>
                 <div class="client-row"><span class="label">Bairro:</span> ${order.userDistrict || '-'}</div>
@@ -404,18 +418,18 @@ export const generateOrderSummaryPDF = (order: Order, settings: ShopSettings, lo
                 </div>` : ''}
                 ${order.shippingCost ? `
                 <div class="total-row">
-                   <span>Frete (${order.shippingMethod}):</span>
+                   <span>Frete (${order.shippingMethod || 'Padrão'}):</span>
                    <span>+ R$ ${order.shippingCost.toFixed(2)}</span>
                 </div>` : ''}
                 ${order.wantsInvoice ? `
                 <div class="total-row">
-                   <span>Nota Fiscal (6%):</span>
-                   <span>+ R$ ${(subtotal * 0.06).toFixed(2)}</span>
+                   <span>Nota Fiscal (${order.invoiceTaxPercent || 6}%):</span>
+                   <span>+ R$ ${(subtotal * ((order.invoiceTaxPercent || 6) / 100)).toFixed(2)}</span>
                 </div>` : ''}
                 ${order.wantsInsurance ? `
                 <div class="total-row">
-                   <span>Seguro (3%):</span>
-                   <span>+ R$ ${(subtotal * 0.03).toFixed(2)}</span>
+                   <span>Taxa de Seguro:</span>
+                   <span>+ R$ ${(order.insuranceTaxAmount || 0).toFixed(2)}</span>
                 </div>` : ''}
                 
                 <div class="total-row final">
