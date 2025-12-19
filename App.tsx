@@ -140,11 +140,6 @@ function App() {
         } else {
             if (newestOrder.createdAt > lastOrderTimestampRef.current) {
                 lastOrderTimestampRef.current = newestOrder.createdAt;
-                // try {
-                //     const audio = new Audio(NOTIFICATION_SOUND);
-                //     audio.volume = 0.5;
-                //     audio.play();
-                // } catch (e) {}
                 if ("Notification" in window && Notification.permission === "granted") {
                     new Notification("💰 Novo Pedido Recebido!", {
                         body: `Cliente: ${newestOrder.userName}\nValor: R$ ${newestOrder.total.toFixed(2)}`,
@@ -171,7 +166,6 @@ function App() {
     const subtotal = cart.reduce((acc, item) => acc + (item.price * item.quantity), 0);
     const buyer = adminOverride ? adminOverride.user : currentUser!;
     
-    // Determine address details based on target
     let orderDetails: any = {
       userName: buyer.name,
       userPhone: buyer.phone || '',
@@ -188,7 +182,7 @@ function App() {
     if (extras.shippingTarget === 'end_customer' && extras.endCustomer) {
       orderDetails = {
         userName: `${buyer.name} (PARA: ${extras.endCustomer.name})`,
-        userPhone: buyer.phone || '', // Keep buyer phone for main contact
+        userPhone: buyer.phone || '', 
         userCpf: extras.endCustomer.cpf,
         userBirthDate: extras.endCustomer.birthDate,
         userCep: extras.endCustomer.cep,
@@ -467,15 +461,20 @@ function App() {
   };
 
   const performTransition = (action: () => void) => {
+    // Reduzido o feedback visual para ser quase instantâneo
     setIsTransitioning(true);
     if (productAnchorRef.current) {
         const y = productAnchorRef.current.getBoundingClientRect().top + window.scrollY - 100;
         window.scrollTo({ top: y, behavior: 'smooth' });
     }
+    
+    // Executa a ação imediatamente
+    action();
+    
+    // Pequeno timeout apenas para o efeito visual da overlay não "piscar" feio, mas processamento é imediato
     setTimeout(() => {
-        action();
         setIsTransitioning(false);
-    }, 2000); 
+    }, 150); 
   };
 
   if (loading) {
@@ -495,10 +494,9 @@ function App() {
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col font-sans relative">
       {isTransitioning && (
-          <div className="fixed inset-0 z-[200] bg-white flex items-center justify-center animate-fade-in">
+          <div className="fixed inset-0 z-[200] bg-white/50 backdrop-blur-[2px] flex items-center justify-center animate-fade-in">
               <div className="flex flex-col items-center">
-                  <div className="w-12 h-12 border-4 border-orange-200 border-t-orange-600 rounded-full animate-spin mb-4"></div>
-                  <p className="text-gray-500 font-medium animate-pulse">Carregando produtos...</p>
+                  <div className="w-8 h-8 border-3 border-orange-200 border-t-orange-600 rounded-full animate-spin mb-2"></div>
               </div>
           </div>
       )}
